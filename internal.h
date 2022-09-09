@@ -13,6 +13,9 @@ char mem[ MAX_MEM ] = { 0 };
 struct _processor {
 	uint32 regs[ MAX_REGS ];
 	EFlags flags;
+
+	uint32 protectedModeMemStart;
+	uint32 instructionptr;
 } proc;
 
 

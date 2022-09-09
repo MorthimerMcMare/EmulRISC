@@ -2,9 +2,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <limits.h>
 
 #include "defines.h"	// Constants, defines, ...
 #include "internal.h"	// Core and memory data.
+#include "matrixop.h"	// Opcodes matrix.
 
 // ====================
 //       Opcodes
@@ -43,6 +45,34 @@ OPCODE( mov_reg ) {
 	proc.regs[ opcode_args[ 0 ] ] = proc.regs[ opcode_args[ 1 ] ];
 }
 
+void regaddsub( uint32 value ) {
+	uint32 *reg = &proc.regs[ opcode_args[ 0 ] ];
+
+	uint32 overflowLimit = UINT_MAX - *reg;
+
+	if ( overflowLimit < value )
+		proc.flags |= OF;
+
+	*reg += value;
+
+	if ( *reg == 0 )
+		proc.flags |= ZF;
+	else if ( (int32_t) *reg < 0 )
+		proc.flags |= SF;
+}
+
+OPCODE( add_const ) {
+	regaddsub( opcode_args[ 1 ] );
+}
+OPCODE( add_reg ) {
+	regaddsub( proc.regs[ opcode_args[ 1 ] ] );
+}
+OPCODE( sub_const ) {
+	regaddsub( UINT_MAX - opcode_args[ 1 ] + 1 );
+}
+OPCODE( sub_reg ) {
+	regaddsub( UINT_MAX - proc.regs[ opcode_args[ 1 ] ] + 1 );
+}
 
 
 /* Stack data control: */
@@ -69,7 +99,7 @@ OPCODE( stack_popreg ) {
 
 // Pushes some register values to the stack. Close analogue of the "pusha".
 //   arg0: amount of registers (from 0, including this value).
-OPCODE( stack_pushallregs ) {
+OPCODE( stack_pushsomeregs ) {
 	uint32 regsamount = opcode_args[ 0 ] + 1;
 
 	for ( uint32 i = 0; i < regsamount; i++ ) {
@@ -79,7 +109,7 @@ OPCODE( stack_pushallregs ) {
 }
 // Pops some values from the stack to registers. Close analogue of the "popa".
 //   arg0: amount of registers (from 0, including this value).
-OPCODE( stack_popallregs ) {
+OPCODE( stack_popsomeregs ) {
 	uint32 regsamount = opcode_args[ 0 ] + 1;
 
 	for ( uint32 i = 0; i < regsamount; i++ ) {
@@ -89,12 +119,12 @@ OPCODE( stack_popallregs ) {
 }
 
 // Pushes a flags internal variable to the stack. Saves only ZF, SF, CF, OF, FDDF, FNF and FPF.
-OPCODE( saveflags ) {
+OPCODE( stack_saveflags ) {
 	opcode_args[ 0 ] = (uint32) ( proc.flags & FLAGS_Storable );
 	op_stack_pushreg();
 }
 // Pops a flags internal variable from the stack. Restores only ZF, SF, CF, OF, FDDF, FNF and FPF.
-OPCODE( loadflags ) {
+OPCODE( stack_loadflags ) {
 	uint32 oldSpecialFlags = ( proc.flags & ~FLAGS_Storable );
 	uint32 oldReg0 = proc.regs[ 0 ];
 
@@ -107,7 +137,7 @@ OPCODE( loadflags ) {
 
 
 
-/* Complex and auxiliary opcodes: */
+/* Complex, auxiliary and other special opcodes: */
 
 // Prints a string to the stdout.
 //   arg0: index of the first memory char cell;
@@ -120,6 +150,10 @@ OPCODE( printstr ) {
 
 	puts( "" );
 }
+
+OPCODE( stop ) {}
+
+OPCODE( nop ) {}
 
 //OPCODE( interrupt ) {}
 
@@ -143,8 +177,97 @@ void opcodeCall2( opcode_pointer opcode, uint32 arg1, uint32 arg2 ) {
 	opcode();
 }
 
+void printFlags( void ) {
+	printf( "<Flags: " );
+
+	if ( proc.flags & ZF )
+		putchar( 'Z' );
+	if ( proc.flags & SF )
+		putchar( 'S' );
+	if ( proc.flags & CF )
+		putchar( 'C' );
+	if ( proc.flags & OF )
+		putchar( 'O' );
+	if ( proc.flags & IF )
+		putchar( 'I' );
+
+	if ( proc.flags & FDDF )
+		printf( "[fdd]" );
+	if ( proc.flags & FNF )
+		printf( "[fn]" );
+	if ( proc.flags & FPF )
+		printf( "[fp]" );
+
+	if ( proc.flags & RlModeF )
+		printf( "[REAL]" );
+
+	puts( ">" );
+}
+
+void queueInstruction( opcode_pointer opcode, uint32 arg0, uint32 arg1 ) {
+
+	if ( proc.instructionptr == 0 ) {
+		int16_t opcodeIndex = findOpcodeMatrixIndex( opcode );
+
+		if ( opcodeIndex >= 0 ) {
+			uint32 startMemCell = proc.protectedModeMemStart;
+
+			mem[ startMemCell ] = opcodeIndex;
+			memcpy( (void *) &mem[ startMemCell + 1 ], (void *) &arg0, 4 );
+			memcpy( (void *) &mem[ startMemCell + 5 ], (void *) &arg1, 4 );
+
+			printf( " [Queue: opcode %u \"%s\", %u:%u (orig %u:%u)]\n", opcodeIndex, opcode_names[ (int) mem[ startMemCell ] ], (uint32) mem[ startMemCell + 1 ], (uint32) mem[ startMemCell + 5 ], arg0, arg1 );
+
+			proc.protectedModeMemStart += RISC_INSTRUCTION_LENGHT;
+		} else {
+			printf( "queueInstruction(). Warning: unknown opcode (%i). Args[ 2 ] == { %u, %u }.", opcodeIndex, arg0, arg1 );
+		}
+	} else {
+		puts( "queueInstruction(). Warning: tried to queue an opcode during VM execution." );
+	}
+}
+
+
 int main( void ) {
-	opcodeCall2( op_mov_const, 0, 'H' );
+	proc.protectedModeMemStart = MEM_PROG_START;
+
+	queueInstruction( op_mov_const, 0, 100 );
+	queueInstruction( op_mov_const, 1, 28 );
+	queueInstruction( op_sub_reg, 0, 1 );		// 'H'
+	queueInstruction( op_add_const, 1, 77 );	// 'i'
+
+	queueInstruction( op_save_reg, 0x1, 1 );
+	queueInstruction( op_save_reg, 0x0, 0 );
+
+	queueInstruction( op_mov_const, 2, '!' );	// '!'
+	queueInstruction( op_stack_pushreg, 2, 0 );
+	queueInstruction( op_stack_popreg, 0, 0 );
+	queueInstruction( op_save_reg, 0x2, 0 );
+
+	queueInstruction( op_printstr, 0x0, 50 );
+
+	queueInstruction( op_stop, 0, 0 );
+
+	puts( "===============" );
+	proc.protectedModeMemStart += ( 1024 - proc.protectedModeMemStart ) % 1024;
+	proc.instructionptr = MEM_PROG_START;
+	opcode_struct curOpcode = { findOpcodeMatrixIndex( op_nop ), 0, 0 };
+
+	while ( curOpcode.id != 0 ) {
+		uint32 startptr = proc.instructionptr;
+
+		curOpcode.id = mem[ startptr ];
+		curOpcode.arg0 = (uint32) mem[ startptr + 1 ];
+		curOpcode.arg1 = (uint32) mem[ startptr + 5 ];
+
+		printf( " [Trace: opcode %u \"%s\", %u, %u]\n", curOpcode.id, opcode_names[ (int) curOpcode.id ], curOpcode.arg0, curOpcode.arg1 );
+
+		opcodeCall2( opcode_matrix[ (int) curOpcode.id ], curOpcode.arg0, curOpcode.arg1 );
+
+		proc.instructionptr += RISC_INSTRUCTION_LENGHT;
+	}
+
+	/*opcodeCall2( op_mov_const, 0, 'H' );
 	opcodeCall2( op_save_reg, 3, 0 );
 	opcodeCall2( op_mov_const, 0, 'i' );
 	opcodeCall2( op_save_reg, 4, 0 );
@@ -156,22 +279,26 @@ int main( void ) {
 	opcodeCall1( op_stack_pushreg, 1 );
 	opcodeCall2( op_mov_const, 1, 0xFFFF );
 	opcodeCall1( op_stack_popreg, 1 );
-	printf( "[stack test] Reg1: %i\n", proc.regs[ 1 ] );
+	printf( "\n[stack test] Reg1: %i\n\n", proc.regs[ 1 ] );
 	opcodeCall2( op_mov_reg, 2, 1 );
-	printf( "[\"mov r2, r1\" test] Reg2: %i\n", proc.regs[ 2 ] );
+	printf( "[\"mov r2, r1\" test] Reg2: %i\n\n", proc.regs[ 2 ] );
 
 	opcodeCall2( op_mov_const, 1, 0x25 );
 	opcodeCall2( op_mov_const, 3, 0x77 );
 
 	printf( "[Bfr \"push all\" test] Reg[0..3]: %i %i %i %i\n", proc.regs[ 0 ], proc.regs[ 1 ], proc.regs[ 2 ], proc.regs[ 3 ] );
-	opcodeCall1( op_stack_pushallregs, 3 );
+	opcodeCall1( op_stack_pushsomeregs, 3 );
 	opcodeCall2( op_mov_const, 0, 3 );
 	opcodeCall2( op_mov_const, 1, 6 );
 	opcodeCall2( op_mov_const, 2, 9 );
 	opcodeCall2( op_mov_const, 3, 12 );
 	printf( "[Bfr  \"pop all\" test] Reg[0..3]: %i %i %i %i\n", proc.regs[ 0 ], proc.regs[ 1 ], proc.regs[ 2 ], proc.regs[ 3 ] );
-	opcodeCall1( op_stack_popallregs, 3 );
-	printf( "[Aft  \"pop all\" test] Reg[0..3]: %i %i %i %i\n", proc.regs[ 0 ], proc.regs[ 1 ], proc.regs[ 2 ], proc.regs[ 3 ] );
+	opcodeCall1( op_stack_popsomeregs, 3 );
+	printf( "[Aft  \"pop all\" test] Reg[0..3]: %i %i %i %i\n\n", proc.regs[ 0 ], proc.regs[ 1 ], proc.regs[ 2 ], proc.regs[ 3 ] );
+
+	opcodeCall2( op_sub_reg, 1, 3 );
+	printf( "[\"add r1, r3\" test] Reg1: %i\n\n", proc.regs[ 1 ] );
+	printFlags();*/
 
 	return 0;
 }

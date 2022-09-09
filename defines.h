@@ -5,6 +5,8 @@
 #ifndef __RISCEMUL_DEFINES_H
 #define __RISCEMUL_DEFINES_H
 
+#define RISC_INSTRUCTION_LENGHT 9 /* Byte length of the every one instruction. */
+
 #define MAX_REGS 32
 #define MAX_FLOAT_REGS 8
 
@@ -20,11 +22,11 @@
 #define MEM_STACK_START 1024
 #define MEM_STACK_END (1024 * 2 - 1)
 
-#define MEM_PROTECTEDMODE_START (1024 * 4)
-#define MEM_VIDEOPAGE_START (1024 * 4)
-#define MEM_VIDEOPAGE_END (1024 * 4 + 80 * 25)
+#define MEM_PROG_START 1024 * 2
 
-#define MEM_USER_START (1024 * 8)
+// Relative to protected mode memory start:
+#define MEM_RELATIVEPROTMODE_VIDEOPAGE_START 0
+#define MEM_RELATIVEPROTMODE_USER_START (1024 * 2)
 
 
 typedef uint64_t uint64;
@@ -40,6 +42,7 @@ typedef enum {
 	SF		= 0x0002,	// Sign flag.
 	CF		= 0x0004,	// Carry flag [Integers only].
 	OF		= 0x0008,	// Overflow flag [Integers only].
+
 	IF		= 0x0010,	// Interrupts enabled flag.
 
 	FDDF	= 0x0020,	// Double-data flag [FloatCPU only].
@@ -52,6 +55,12 @@ typedef enum {
 } EFlags;
 
 #define IF_REAL_MODE if ( proc.flags & RlModeF )
+
+typedef struct {
+	char id;
+	uint32 arg0;
+	uint32 arg1;
+} opcode_struct;
 
 /*typedef union _rics_types {
 	uint64 t64;
