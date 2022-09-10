@@ -205,18 +205,32 @@ void printFlags( void ) {
 }
 
 void queueInstruction( opcode_pointer opcode, uint32 arg0, uint32 arg1 ) {
-
 	if ( proc.instructionptr == 0 ) {
 		int16_t opcodeIndex = findOpcodeMatrixIndex( opcode );
+
+		opcode_arg curarg = { 0 };
 
 		if ( opcodeIndex >= 0 ) {
 			uint32 startMemCell = proc.protectedModeMemStart;
 
 			mem[ startMemCell ] = opcodeIndex;
-			memcpy( (void *) &mem[ startMemCell + 1 ], (void *) &arg0, 4 );
-			memcpy( (void *) &mem[ startMemCell + 5 ], (void *) &arg1, 4 );
 
-			printf( " [Queue: opcode %u \"%s\", %u:%u (orig %u:%u)]\n", opcodeIndex, opcode_names[ (int) mem[ startMemCell ] ], (uint32) mem[ startMemCell + 1 ], (uint32) mem[ startMemCell + 5 ], arg0, arg1 );
+			curarg.t32 = arg0;
+			memcpy( (void *) &mem[ startMemCell + 1 ], (void *) &curarg.c, 4 );
+			//mem[ startMemCell + 1 ] = curarg.c;
+
+			curarg.t32 = arg1;
+			memcpy( (void *) &mem[ startMemCell + 5 ], (void *) &curarg.c, 4 );
+			//mem[ startMemCell + 5 ] = curarg.c;
+
+			//memcpy( (void *) &mem[ startMemCell + 4 ], (void *) uint32char.c, 4 );
+			//memcpy( (void *) &mem[ startMemCell + 1 ], (void *) &arg0, 4 );
+			//memcpy( (void *) &mem[ startMemCell + 5 ], (void *) &arg1, 4 );
+
+			for ( int i = 0; i < RISC_INSTRUCTION_LENGHT; i++ )
+				printf( "%02X ", mem[ startMemCell + i ] );
+
+			printf( " [Queue: opcode %-2u \"%s\", %Xh:%Xh (orig %xh:%xh)]\n", opcodeIndex, opcode_names[ (int) mem[ startMemCell ] ], * (uint32*) &mem[ startMemCell + 1 ], * (uint32*) &mem[ startMemCell + 5 ], arg0, arg1 );
 
 			proc.protectedModeMemStart += RISC_INSTRUCTION_LENGHT;
 		} else {
@@ -236,33 +250,33 @@ int main( void ) {
 	queueInstruction( op_sub_reg, 0, 1 );		// 'H'
 	queueInstruction( op_add_const, 1, 77 );	// 'i'
 
-	queueInstruction( op_save_reg, 0x1, 1 );
-	queueInstruction( op_save_reg, 0x0, 0 );
+	queueInstruction( op_save_reg, 0x4001, 1 );
+	queueInstruction( op_save_reg, 0x4000, 0 );
 
 	queueInstruction( op_mov_const, 2, '!' );	// '!'
 	queueInstruction( op_stack_pushreg, 2, 0 );
 	queueInstruction( op_stack_popreg, 0, 0 );
-	queueInstruction( op_save_reg, 0x2, 0 );
+	queueInstruction( op_save_reg, 0x4002, 0 );
 
-	queueInstruction( op_printstr, 0x0, 50 );
+	queueInstruction( op_printstr, 0x4000, 50 );
 
 	queueInstruction( op_stop, 0, 0 );
 
 	puts( "===============" );
 	proc.protectedModeMemStart += ( 1024 - proc.protectedModeMemStart ) % 1024;
 	proc.instructionptr = MEM_PROG_START;
-	opcode_struct curOpcode = { findOpcodeMatrixIndex( op_nop ), 0, 0 };
+	opcode_struct curOpcode = { findOpcodeMatrixIndex( op_nop ), { 0 }, { 0 } };
 
 	while ( curOpcode.id != 0 ) {
 		uint32 startptr = proc.instructionptr;
 
 		curOpcode.id = mem[ startptr ];
-		curOpcode.arg0 = (uint32) mem[ startptr + 1 ];
-		curOpcode.arg1 = (uint32) mem[ startptr + 5 ];
+		memcpy( (void *) curOpcode.arg0.c, (void *) &mem[ startptr + 1 ], 4 );
+		memcpy( (void *) curOpcode.arg1.c, (void *) &mem[ startptr + 5 ], 4 );
 
-		printf( " [Trace: opcode %u \"%s\", %u, %u]\n", curOpcode.id, opcode_names[ (int) curOpcode.id ], curOpcode.arg0, curOpcode.arg1 );
+		printf( " [Trace: \"%8s  %4Xh, %Xh\"]\n", opcode_names[ (int) curOpcode.id ], curOpcode.arg0.t32, curOpcode.arg1.t32 );
 
-		opcodeCall2( opcode_matrix[ (int) curOpcode.id ], curOpcode.arg0, curOpcode.arg1 );
+		opcodeCall2( opcode_matrix[ (int) curOpcode.id ], curOpcode.arg0.t32, curOpcode.arg1.t32 );
 
 		proc.instructionptr += RISC_INSTRUCTION_LENGHT;
 	}

@@ -56,10 +56,15 @@ typedef enum {
 
 #define IF_REAL_MODE if ( proc.flags & RlModeF )
 
+typedef union {
+	uint32 t32;
+	char c[ 4 ];
+} opcode_arg;
+
 typedef struct {
 	char id;
-	uint32 arg0;
-	uint32 arg1;
+	opcode_arg arg0;
+	opcode_arg arg1;
 } opcode_struct;
 
 /*typedef union _rics_types {
