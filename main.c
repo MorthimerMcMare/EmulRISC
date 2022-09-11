@@ -8,6 +8,12 @@
 #include "internal.h"	// Core and memory data.
 #include "matrixop.h"	// Opcodes matrix.
 
+void opcodeCall0( opcode_pointer );
+void opcodeCall1( opcode_pointer opcode, uint32 arg1 );
+void opcodeCall2( opcode_pointer opcode, uint32 arg1, uint32 arg2 );
+void printFlags( void );
+
+
 // ====================
 //       Opcodes
 // ====================
@@ -176,7 +182,7 @@ OPCODE( int ) {
 			default:
 				break;
 		}
-	} else {
+	} else if ( mem[ interruptCodePtr ] != 0 ) {
 		int prevreg0 = proc.regs[ 0 ];
 
 		// Save last instruction position:
@@ -187,6 +193,10 @@ OPCODE( int ) {
 		proc.regs[ 0 ] = prevreg0;
 
 		proc.instructionptr = mem[ interruptCodePtr ];
+	} else {
+		// An error call must be here.
+		//opcodeCall1( op_int, MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_FIRST + 2 );
+		printf( "op_int(). Null address in interrupt vector table for cell %i.\n", interruptNumber );
 	}
 }
 
@@ -201,7 +211,35 @@ OPCODE( ret ) {
 	proc.regs[ 0 ] = prevreg0;
 }
 
+OPCODE( jmp_const ) {
+	int validInstruction = ( opcode_args[ 0 ] >= MEM_PROG_START && opcode_args[ 0 ] < proc.protectedModeMemStart && ( ( opcode_args[ 0 ] - MEM_PROG_START ) % RISC_INSTRUCTION_LENGTH ) == 0 );
 
+	if ( validInstruction || ( proc.flags & RlModeF ) ) {
+		proc.instructionptr = opcode_args[ 0 ];
+	} else {
+		// An error call must be here.
+		//opcodeCall1( op_int, MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_FIRST + 1 );
+		printf( "op_jmp(). Wrong adress %04X (checks: '>= %04X', '< %04X', 'modulo %i == %i' ).\n", opcode_args[ 0 ], MEM_PROG_START, proc.protectedModeMemStart, RISC_INSTRUCTION_LENGTH, ( opcode_args[ 0 ] - MEM_PROG_START ) % RISC_INSTRUCTION_LENGTH );
+	}
+}
+
+OPCODE( jmp_reg ) {
+	opcode_args[ 0 ] = proc.regs[ opcode_args[ 0 ] ];
+	op_jmp_const();
+}
+
+OPCODE( jz_const ) {
+	if ( proc.flags & ZF ) op_jmp_const();
+}
+OPCODE( jz_reg ) {
+	if ( proc.flags & ZF ) op_jmp_reg();
+}
+OPCODE( jnz_const ) {
+	if ( !( proc.flags & ZF ) ) op_jmp_const();
+}
+OPCODE( jnz_reg ) {
+	if ( !( proc.flags & ZF ) ) op_jmp_reg();
+}
 
 
 // ====================
@@ -271,12 +309,12 @@ void queueInstruction( opcode_pointer opcode, uint32 arg0, uint32 arg1 ) {
 			//memcpy( (void *) &mem[ startMemCell + 1 ], (void *) &arg0, 4 );
 			//memcpy( (void *) &mem[ startMemCell + 5 ], (void *) &arg1, 4 );
 
-			for ( int i = 0; i < RISC_INSTRUCTION_LENGHT; i++ )
-				printf( "%02X ", mem[ startMemCell + i ] );
+			for ( int i = 0; i < RISC_INSTRUCTION_LENGTH; i++ )
+				printf( "%02X ", mem[ startMemCell + i ] & 0xFF );
 
-			printf( " [Queue: opcode %-2u \"%s\", %Xh:%Xh (orig %xh:%xh)]\n", opcodeIndex, opcode_names[ (int) mem[ startMemCell ] ], * (uint32*) &mem[ startMemCell + 1 ], * (uint32*) &mem[ startMemCell + 5 ], arg0, arg1 );
+			printf( " [Queue: opcode %-2u \"%s\", %Xh:%Xh (orig %Xh:%Xh)]\n", opcodeIndex, opcode_names[ (int) mem[ startMemCell ] ], * (uint32*) &mem[ startMemCell + 1 ], * (uint32*) &mem[ startMemCell + 5 ], arg0, arg1 );
 
-			proc.protectedModeMemStart += RISC_INSTRUCTION_LENGHT;
+			proc.protectedModeMemStart += RISC_INSTRUCTION_LENGTH;
 		} else {
 			printf( "queueInstruction(). Warning: unknown opcode (%i). Args[ 2 ] == { %u, %u }.", opcodeIndex, arg0, arg1 );
 		}
@@ -304,6 +342,11 @@ int main( void ) {
 
 	queueInstruction( op_mov_const, 0, 0x4000 );
 	queueInstruction( op_mov_const, 1, 0 );
+	queueInstruction( op_jmp_const, proc.protectedModeMemStart + RISC_INSTRUCTION_LENGTH * 2, 0 );
+
+	queueInstruction( op_nop, 0, 0 );				// Must be skipped;
+	queueInstruction( op_mov_const, 0, 0xABCD );	// Must be skipped.
+
 	queueInstruction( op_int, 1, 0 ); // Prints a string (via "BIOS").
 
 	queueInstruction( op_int, 0, 0 ); // Ends emulation (via "BIOS").
@@ -320,11 +363,11 @@ int main( void ) {
 		memcpy( (void *) curOpcode.arg0.c, (void *) &mem[ startptr + 1 ], 4 );
 		memcpy( (void *) curOpcode.arg1.c, (void *) &mem[ startptr + 5 ], 4 );
 
-		printf( " [Trace: \"%8s  %4Xh, %Xh\"]\n", opcode_names[ (int) curOpcode.id ], curOpcode.arg0.t32, curOpcode.arg1.t32 );
+		printf( " [Trace 0x%04X: \"%8s  %4Xh, %Xh\"]\n", proc.instructionptr, opcode_names[ (int) curOpcode.id ], curOpcode.arg0.t32, curOpcode.arg1.t32 );
 
 		opcodeCall2( opcode_matrix[ (int) curOpcode.id ], curOpcode.arg0.t32, curOpcode.arg1.t32 );
 
-		proc.instructionptr += RISC_INSTRUCTION_LENGHT;
+		proc.instructionptr += RISC_INSTRUCTION_LENGTH;
 	}
 
 	/*opcodeCall2( op_mov_const, 0, 'H' );

@@ -14,7 +14,7 @@
 
 
 // Forward opcodes declaration:
-OPCODE( stop );
+OPCODE( nop );
 
 OPCODE( mov_const );
 OPCODE( mov_reg );
@@ -34,7 +34,14 @@ OPCODE( stack_saveflags );
 OPCODE( stack_loadflags );
 
 OPCODE( int );
-OPCODE( nop );
+OPCODE( ret );
+
+OPCODE( jmp_const );
+OPCODE( jmp_reg );
+OPCODE( jz_const );
+OPCODE( jz_reg );
+OPCODE( jnz_const );
+OPCODE( jnz_reg );
 
 
 // Opcodes matrix itself:
@@ -58,7 +65,15 @@ void ( *opcode_matrix[] )( void ) = {
 	op_stack_saveflags,
 	op_stack_loadflags,
 
-	op_int
+	op_int,
+	op_ret,
+
+	op_jmp_const,
+	op_jmp_reg,
+	op_jz_const,
+	op_jz_reg,
+	op_jnz_const,
+	op_jnz_reg,
 };
 
 const char *opcode_names[] = {
@@ -66,7 +81,8 @@ const char *opcode_names[] = {
 	"movc", "mov", "save", "load",
 	"addc", "add", "subc", "sub",
 	"push", "pop", "pushsome", "popsome", "pushf", "popf",
-	"int"
+	"int", "ret",
+	"jmpc", "jmp", "jzc", "jz", "jnzc", "jnz"
 };
 
 
