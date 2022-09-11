@@ -139,23 +139,67 @@ OPCODE( stack_loadflags ) {
 
 /* Complex, auxiliary and other special opcodes: */
 
-// Prints a string to the stdout.
-//   arg0: index of the first memory char cell;
-//   arg1: maximal amount of symbols.
-OPCODE( printstr ) {
-	char *curchar = &mem[ opcode_args[ 0 ] ];
+// Prints a string to the stdout (aux.).
+//   Reg0: index of the first memory char cell;
+//   Reg1: maximal amount of symbols.
+OPCODE( bios_printstr ) {
+	char *curchar = &mem[ proc.regs[ 0 ] ];
 
-	for ( int i = opcode_args[ 1 ]; *curchar != '\x0' && i > 0; curchar++, i-- )
-		printf( "%c", *curchar );
+	uint32 maxchars = proc.regs[ 1 ];
+	if ( maxchars == 0 )
+		maxchars = ULONG_MAX;
+
+	for ( uint32 i = maxchars; *curchar != '\x0' && i > 0; curchar++, i-- )
+		putchar( *curchar );
 
 	puts( "" );
 }
 
-OPCODE( stop ) {}
-
 OPCODE( nop ) {}
 
-//OPCODE( interrupt ) {}
+
+OPCODE( int ) {
+	int interruptNumber = opcode_args[ 0 ];
+
+	uint32 interruptCodePtr = MEM_INTERRUPT_VECTOR_TABLE_START + interruptNumber * sizeof( uint32 );
+
+	// "BIOS" interrupts are overridden only if address value in the IVT is not equals to zero:
+	if ( interruptNumber < MEM_INTERRUPT_VECTOR_TABLE_BIOS_AMOUNT && mem[ interruptCodePtr ] == 0 ) {
+		// Temporal, nasty solution.
+		switch ( interruptNumber ) {
+			case 0:
+				proc.flags |= EmulEndF;
+				break;
+			case 1:
+				op_bios_printstr();
+				break;
+			default:
+				break;
+		}
+	} else {
+		int prevreg0 = proc.regs[ 0 ];
+
+		// Save last instruction position:
+		proc.regs[ 0 ] = proc.instructionptr;
+		opcode_args[ 0 ] = 0;
+		op_stack_pushreg();
+
+		proc.regs[ 0 ] = prevreg0;
+
+		proc.instructionptr = mem[ interruptCodePtr ];
+	}
+}
+
+OPCODE( ret ) {
+	int prevreg0 = proc.regs[ 0 ];
+
+	// Load last instruction position:
+	opcode_args[ 0 ] = 0;
+	op_stack_popreg();
+	proc.instructionptr = proc.regs[ 0 ];
+
+	proc.regs[ 0 ] = prevreg0;
+}
 
 
 
@@ -258,16 +302,18 @@ int main( void ) {
 	queueInstruction( op_stack_popreg, 0, 0 );
 	queueInstruction( op_save_reg, 0x4002, 0 );
 
-	queueInstruction( op_printstr, 0x4000, 50 );
+	queueInstruction( op_mov_const, 0, 0x4000 );
+	queueInstruction( op_mov_const, 1, 0 );
+	queueInstruction( op_int, 1, 0 ); // Prints a string (via "BIOS").
 
-	queueInstruction( op_stop, 0, 0 );
+	queueInstruction( op_int, 0, 0 ); // Ends emulation (via "BIOS").
 
 	puts( "===============" );
 	proc.protectedModeMemStart += ( 1024 - proc.protectedModeMemStart ) % 1024;
 	proc.instructionptr = MEM_PROG_START;
 	opcode_struct curOpcode = { findOpcodeMatrixIndex( op_nop ), { 0 }, { 0 } };
 
-	while ( curOpcode.id != 0 ) {
+	while ( !( proc.flags & EmulEndF ) ) {
 		uint32 startptr = proc.instructionptr;
 
 		curOpcode.id = mem[ startptr ];

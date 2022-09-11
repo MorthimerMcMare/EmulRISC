@@ -33,13 +33,13 @@ OPCODE( stack_popsomeregs );
 OPCODE( stack_saveflags );
 OPCODE( stack_loadflags );
 
-OPCODE( printstr );
+OPCODE( int );
 OPCODE( nop );
 
 
 // Opcodes matrix itself:
 void ( *opcode_matrix[] )( void ) = {
-	op_stop,
+	op_nop,
 
 	op_mov_const,
 	op_mov_reg,
@@ -58,17 +58,17 @@ void ( *opcode_matrix[] )( void ) = {
 	op_stack_saveflags,
 	op_stack_loadflags,
 
-	op_printstr,
-	op_nop
+	op_int
 };
 
 const char *opcode_names[] = {
-	"stop",
-	"mov", "movreg", "save", "load",
-	"add", "addreg", "sub", "subreg",
+	"nop",
+	"movc", "mov", "save", "load",
+	"addc", "add", "subc", "sub",
 	"push", "pop", "pushsome", "popsome", "pushf", "popf",
-	"printstr", "nop"
+	"int"
 };
+
 
 int16_t findOpcodeMatrixIndex( opcode_pointer opcode ) {
 	static int16_t matrixsize = sizeof( opcode_matrix ) / sizeof( opcode_matrix[ 0 ] );

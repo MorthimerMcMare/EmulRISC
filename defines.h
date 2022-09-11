@@ -17,12 +17,23 @@
 #define MEM_BIOS_TEXTCURSORX 4
 #define MEM_BIOS_TEXTCURSORY 6
 #define MEM_BIOS_OTHER 8
-#define MEM_BIOS_END 1023
+#define MEM_BIOS_END 255
+
+#define MEM_INTERRUPT_VECTOR_TABLE_START 256 				/* 192 interrupts at all. */
+#define MEM_INTERRUPT_VECTOR_TABLE_BIOS_START 256
+#define MEM_INTERRUPT_VECTOR_TABLE_BIOS_AMOUNT 16			/* 8 "BIOS" interrupts (overridden only if address value is not "0"). */
+#define MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_START (MEM_INTERRUPT_VECTOR_TABLE_BIOS_START + 4 * MEM_INTERRUPT_VECTOR_TABLE_BIOS_AMOUNT)
+#define MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_AMOUNT 16		/* 16 exceptions interrupts. */
+#define MEM_INTERRUPT_VECTOR_TABLE_USER_START (MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_START + 4 * MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_AMOUNT)
+#define MEM_INTERRUPT_VECTOR_TABLE_END 1023
 
 #define MEM_STACK_START 1024
 #define MEM_STACK_END (1024 * 2 - 1)
 
-#define MEM_PROG_START 1024 * 2
+#define MEM_INTERRUPTS_START (1024 * 2)
+#define MEM_INTERRUPTS_END (1024 * 4 - 1)
+
+#define MEM_PROG_START (1024 * 4)
 
 // Relative to protected mode memory start:
 #define MEM_RELATIVEPROTMODE_VIDEOPAGE_START 0
@@ -49,12 +60,14 @@ typedef enum {
 	FNF		= 0x0040,	// Infinity value flag [FloatCPU only].
 	FPF		= 0x0080,	// Precision lose flag [FloatCPU only].
 
-	RlModeF	= 0x8000,	// Real (root/system) processor mode flag.
+	RlModeF	= 0x4000,	// Real (root/system) processor mode flag.
+	EmulEndF= 0x8000,	// Exit flag. Maybe will be removed in future.
 
 	FLAGS_Storable = ZF | SF | CF | OF | FDDF | FNF | FPF // They will be handled via "pushf"/"popf".
 } EFlags;
 
 #define IF_REAL_MODE if ( proc.flags & RlModeF )
+
 
 typedef union {
 	uint32 t32;
@@ -66,6 +79,7 @@ typedef struct {
 	opcode_arg arg0;
 	opcode_arg arg1;
 } opcode_struct;
+
 
 /*typedef union _rics_types {
 	uint64 t64;
