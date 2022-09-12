@@ -52,6 +52,8 @@ OPCODE( mov_reg ) {
 }
 
 void regaddsub( uint32 value ) {
+	proc.flags &= ~( ZF | SF | OF );
+
 	uint32 *reg = &proc.regs[ opcode_args[ 0 ] ];
 
 	uint32 overflowLimit = UINT32_MAX - *reg;
@@ -348,6 +350,16 @@ int main( void ) {
 	queueInstruction( op_mov_const, 0, 0xABCD );	// Must be skipped.
 
 	queueInstruction( op_int, 1, 0 ); // Prints a string (via "BIOS").
+
+	queueInstruction( op_mov_const, 0, 16 );
+	queueInstruction( op_mov_const, 1, -16 );
+	queueInstruction( op_add_reg, 0, 1 );
+
+	queueInstruction( op_jnz_const, proc.protectedModeMemStart + RISC_INSTRUCTION_LENGTH * 4, 0 );
+	queueInstruction( op_mov_const, 2, 'z' );
+	queueInstruction( op_save_reg, 0x4400, 2 );
+	queueInstruction( op_mov_const, 0, 0x4400 );
+	queueInstruction( op_int, 1, 0 );
 
 	queueInstruction( op_int, 0, 0 ); // Ends emulation (via "BIOS").
 
