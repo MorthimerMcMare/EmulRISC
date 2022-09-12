@@ -54,7 +54,7 @@ OPCODE( mov_reg ) {
 void regaddsub( uint32 value ) {
 	uint32 *reg = &proc.regs[ opcode_args[ 0 ] ];
 
-	uint32 overflowLimit = UINT_MAX - *reg;
+	uint32 overflowLimit = UINT32_MAX - *reg;
 
 	if ( overflowLimit < value )
 		proc.flags |= OF;
@@ -74,10 +74,10 @@ OPCODE( add_reg ) {
 	regaddsub( proc.regs[ opcode_args[ 1 ] ] );
 }
 OPCODE( sub_const ) {
-	regaddsub( UINT_MAX - opcode_args[ 1 ] + 1 );
+	regaddsub( UINT32_MAX - opcode_args[ 1 ] + 1 );
 }
 OPCODE( sub_reg ) {
-	regaddsub( UINT_MAX - proc.regs[ opcode_args[ 1 ] ] + 1 );
+	regaddsub( UINT32_MAX - proc.regs[ opcode_args[ 1 ] ] + 1 );
 }
 
 
@@ -153,7 +153,7 @@ OPCODE( bios_printstr ) {
 
 	uint32 maxchars = proc.regs[ 1 ];
 	if ( maxchars == 0 )
-		maxchars = ULONG_MAX;
+		maxchars = UINT32_MAX;
 
 	for ( uint32 i = maxchars; *curchar != '\x0' && i > 0; curchar++, i-- )
 		putchar( *curchar );

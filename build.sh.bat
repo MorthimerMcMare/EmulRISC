@@ -20,14 +20,14 @@ set +o histexpand 2>/dev/null
 # Original polyglot file: https://github.com/llamasoft/polyshell.
 
 PROGNAME="main"
-OUTPROGNAME="EmulRISC.out"
+OUTPROGNAME="emulRISC.out"
 BUILDSUCCESS=0
 
-g++ $PROGNAME.cpp -o $OUTPROGNAME -Wall -Wextra && echo -e "\n\e[1;92mBuilded\e[1;m.\n" && BUILDSUCCESS=1 #&& sleep 0.2 && ./$PROGNAME.elf
+gcc $PROGNAME.c -o $OUTPROGNAME -Wall -Wextra && BUILDSUCCESS=1 #&& sleep 0.2 && ./$OUTPROGNAME
 
 if [[ "$1" == "r" || "$1" == "run" ]]; then
 	if [[ $BUILDSUCCESS == 1 ]]; then
-	    ./*.elf
+	    ./$OUTPROGNAME
 	fi
 fi
 
