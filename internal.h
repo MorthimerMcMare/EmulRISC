@@ -25,6 +25,6 @@ typedef struct _float_coprocessor {
 } floatproc;
 
 
-uint32 opcode_args[ 2 ] = { 0, 0 };
+opcode_mem_struct curopc = { 0 };
 
 #endif /* of #ifndef __RISCEMUL_INTERNAL_H */

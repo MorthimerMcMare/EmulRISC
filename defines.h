@@ -5,10 +5,10 @@
 #ifndef __RISCEMUL_DEFINES_H
 #define __RISCEMUL_DEFINES_H
 
-#define RISC_INSTRUCTION_LENGTH 9 /* Byte length of the every one instruction. */
+#define RISC_INSTRUCTION_LENGTH 4 /* Byte length of the every one instruction. */
 
-#define MAX_REGS 32
-#define MAX_FLOAT_REGS 8
+#define MAX_REGS 32 /* As 2^5. */
+#define MAX_FLOAT_REGS 16
 
 #define MAX_MEM (1024 * 1024) /* Statically allocated 1 MB. */
 
@@ -28,13 +28,10 @@
 #define MEM_INTERRUPT_VECTOR_TABLE_USER_START (MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_START + 4 * MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_AMOUNT)
 #define MEM_INTERRUPT_VECTOR_TABLE_END 1023
 
-#define MEM_STACK_START 1024
-#define MEM_STACK_END (1024 * 2 - 1)
+#define MEM_INTERRUPTS_START (1024)
+#define MEM_INTERRUPTS_END (1024 * 2 - 1)
 
-#define MEM_INTERRUPTS_START (1024 * 2)
-#define MEM_INTERRUPTS_END (1024 * 4 - 1)
-
-#define MEM_PROG_START (1024 * 4)
+#define MEM_PROG_START (1024 * 2)
 
 // Relative to protected mode memory start:
 #define MEM_RELATIVEPROTMODE_VIDEOPAGE_START 0
@@ -69,17 +66,53 @@ typedef enum {
 
 #define IF_REAL_MODE if ( proc.flags & RlModeF )
 
+typedef struct {
+	union {
+		uint32 t32;
+		char c[ 4 ];
+	} srcmem;
 
-typedef union {
+	unsigned char id;
+	uint32 args[ 4 ];
+} opcode_mem_struct;
+
+
+
+typedef enum {
+	OPST_None = 0,	// No args.
+	OPST_1Regs,		// 5:[r1], 21:const.
+	OPST_2Regs,		// 5:[r1], 5:[r2], 16:const.
+	OPST_3Regs,		// 5:[r1], 5:[r2], 5:[r3], 11:const.
+	OPST_4Regs,		// 5:[r1], 5:[r2], 5:[r3], 5:[r4].
+	OPST_Const,
+} EOpcodeStructureType;
+
+typedef struct _opcode_structtype_bitlength {
+	int argsAmount;
+	char lengths[ 4 ]; // From 6th bit.
+} opcode_structtype_length;
+
+opcode_structtype_length opcode_structtype_lengths[] = {
+	{ 0 },
+	{ 2, { 5, 21 } },
+	{ 3, { 5, 5, 16 } },
+	{ 4, { 5, 5, 5, 11 } },
+	{ 4, { 5, 5, 5, 5 } },
+	{ 1, { 26 } }
+};
+
+#define QueueArgs0() ( uint32[ 4 ] ){ 0 }
+#define QueueArgs1( arg1 ) ( uint32[ 4 ] ){ arg1, 0, 0, 0 }
+#define QueueArgs2( arg1, arg2 ) ( uint32[ 4 ] ){ arg1, arg2, 0, 0 }
+#define QueueArgs3( arg1, arg2, arg3 ) ( uint32[ 4 ] ){ arg1, arg2, arg3, 0 }
+#define QueueArgs4( arg1, arg2, arg3, arg4 ) ( uint32[ 4 ] ){ arg1, arg2, arg3, arg4 }
+
+
+
+/*typedef union {
 	uint32 t32;
 	char c[ 4 ];
-} opcode_arg;
-
-typedef struct {
-	char id;
-	opcode_arg arg0;
-	opcode_arg arg1;
-} opcode_struct;
+} opcode_arg;*/
 
 
 /*typedef union _rics_types {
