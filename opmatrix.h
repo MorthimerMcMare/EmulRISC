@@ -12,7 +12,7 @@
 // Forward opcodes declaration:
 OPCODE( nop );
 
-OPCODE( load_const );
+OPCODE( mov_const );
 OPCODE( load_byte );
 OPCODE( load_word );
 OPCODE( load_dword );
@@ -24,7 +24,10 @@ OPCODE( store_dword );
 OPCODE( add );
 OPCODE( add_const );
 OPCODE( sub );
+OPCODE( sub_const );
 OPCODE( mul );
+OPCODE( mul_u );
+
 OPCODE( and );
 OPCODE( and_const );
 OPCODE( or );
@@ -43,35 +46,36 @@ typedef struct {
 	char name[ 7 ];
 } opcode_data;
 
-opcode_data opcode_matrix[] = {
+opcode_data opcode_matrix[ 64 ] = {
 	{ op_nop,			OPST_None,	"nop" },
 
-	{ op_load_const,	OPST_1Regs,	"mov" },
-	{ op_load_byte,		OPST_2Regs,	"ldb" },
-	{ op_load_word,		OPST_2Regs,	"ldw" },
-	{ op_load_dword,	OPST_2Regs,	"ldd" },
-	{ op_store_lbyte,	OPST_2Regs,	"svbl" },
-	{ op_store_hbyte,	OPST_2Regs,	"svbh" },
-	{ op_store_word,	OPST_2Regs,	"svw" },
-	{ op_store_dword,	OPST_2Regs,	"svd" },
+	{ op_mov_const,		OPST_1RegC,	"mov" },
+	{ op_load_byte,		OPST_2Reg,	"ldb" },
+	{ op_load_word,		OPST_2Reg,	"ldw" },
+	{ op_load_dword,	OPST_2Reg,	"ldd" },
+	{ op_store_lbyte,	OPST_2Reg,	"svbl" },
+	{ op_store_hbyte,	OPST_2Reg,	"svbh" },
+	{ op_store_word,	OPST_2Reg,	"svw" },
+	{ op_store_dword,	OPST_2Reg,	"svd" },
 
-	{ op_add,			OPST_3Regs, "add" },
-	{ op_add_const,		OPST_2Regs, "addv" },
-	{ op_sub,			OPST_3Regs, "sub" },
-	{ op_mul,			OPST_4Regs, "mul" },
-	//{ op_mul_u,			OPST_4Regs, "mulu" },
-	//{ op_div,			OPST_4Regs, "div" },
-	{ op_and,			OPST_3Regs, "and" },
-	{ op_and_const,		OPST_2Regs,	"andv" },
-	{ op_or,			OPST_3Regs, "or" },
-	{ op_or_const,		OPST_2Regs, "orv" },
-	{ op_xor,			OPST_3Regs, "xor" },
-	{ op_xor_const,		OPST_2Regs, "xorv" },
-	{ op_shl,			OPST_3Regs, "shl" },
-	{ op_shl_const,		OPST_2Regs, "shlv" },
-	{ op_shr,			OPST_3Regs, "shr" },
-	{ op_shr_const,		OPST_2Regs, "shrv" },
-	{ op_neg,			OPST_1Regs, "neg" }
+	{ op_add,			OPST_3RegC,	"add" },
+	{ op_add_const,		OPST_2RegC,	"addv" },
+	{ op_sub,			OPST_3RegC,	"sub" },
+	{ op_mul,			OPST_4Reg,	"mul" },
+	{ op_mul_u,			OPST_4Reg,	"mulu" },
+	//{ op_div,			OPST_4Reg,	"div" },
+
+	{ op_and,			OPST_3Reg,	"and" },
+	{ op_and_const,		OPST_2RegC,	"andv" },
+	{ op_or,			OPST_3Reg,	"or" },
+	{ op_or_const,		OPST_2RegC,	"orv" },
+	{ op_xor,			OPST_3Reg,	"xor" },
+	{ op_xor_const,		OPST_2RegC,	"xorv" },
+	{ op_shl,			OPST_3Reg,	"shl" },
+	{ op_shl_const,		OPST_2RegC,	"shlv" },
+	{ op_shr,			OPST_3Reg,	"shr" },
+	{ op_shr_const,		OPST_2RegC,	"shrv" },
+	{ op_neg,			OPST_1Reg,	"neg" }
 };
 
 

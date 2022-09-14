@@ -19,7 +19,7 @@ void printFlags( void );
 
 /* Main memory control: */
 
-OPCODE( load_const ) {
+OPCODE( mov_const ) {
 	proc.regs[ curopc.args[ 0 ] ] = curopc.args[ 1 ];
 }
 OPCODE( load_byte ) {
@@ -46,114 +46,119 @@ OPCODE( store_dword ) {
 	* (uint32 *) &mem[ curopc.args[ 0 ] ] = proc.regs[ curopc.args[ 1 ] ] + curopc.args[ 2 ];
 }
 
-/*
-// Stores a 32-bit register into memory.
-//   arg0: memory cell to save to.
-//   arg1: register index.
-OPCODE( save_reg ) {
-	mem[ curopc.args[ 0 ] ] = (uint32) proc.regs[ curopc.args[ 1 ] ];
-}
-// Loads a 32-bit value from memory into register.
-//   arg0: register index to save to.
-//   arg1: memory cell.
-OPCODE( load_reg ) {
-	proc.regs[ curopc.args[ 0 ] ] = (uint32) mem[ curopc.args[ 1 ] ];
-}
-*/
-
-
 
 /* Registers control: */
 
-void regaddsub( uint32 value ) {
-	proc.flags &= ~( ZF | SF | OF );
+uint64 setAddOverflow( uint32 val1, uint32 val2 ) {
+	uint64 resultadd = ( val1 + val2 );
 
-	uint32 *reg = &proc.regs[ curopc.args[ 0 ] ];
-
-	uint32 overflowLimit = UINT32_MAX - *reg;
-
-	if ( overflowLimit < value )
+	if ( resultadd > UINT32_MAX )
 		proc.flags |= OF;
 
-	*reg += value;
+	return resultadd;
+}
 
-	if ( *reg == 0 )
+void regaddsub( uint32 value ) {
+	uint32 *destreg = &REGARG( 0 );
+	*destreg = value;
+
+	if ( *destreg == 0 )
 		proc.flags |= ZF;
-	else if ( (int32_t) *reg < 0 )
+	else if ( (int32) *destreg < 0 )
 		proc.flags |= SF;
 }
 
 OPCODE( add_const ) {
-	regaddsub( curopc.args[ 1 ] );
+	//regaddsub( curopc.args[ 1 ] );
+	proc.flags &= ~( ZF | SF | OF );
+	regaddsub( setAddOverflow( REGARG( 1 ), curopc.args[ 2 ] ) );
 }
 OPCODE( add ) {
-	regaddsub( proc.regs[ curopc.args[ 1 ] ] );
+	proc.flags &= ~( ZF | SF | OF );
+	regaddsub( setAddOverflow( setAddOverflow( REGARG( 1 ), REGARG( 2 ) ), curopc.args[ 3 ] ) );
 }
+
 OPCODE( sub_const ) {
-	regaddsub( UINT32_MAX - curopc.args[ 1 ] + 1 );
+	proc.flags &= ~( ZF | SF | OF );
+	regaddsub( setAddOverflow( REGARG( 1 ), UINT32_MAX - curopc.args[ 1 ] + 1 ) );
 }
 OPCODE( sub ) {
-	regaddsub( UINT32_MAX - proc.regs[ curopc.args[ 1 ] ] + 1 );
+	proc.flags &= ~( ZF | SF | OF );
+	regaddsub( setAddOverflow( setAddOverflow( REGARG( 1 ), UINT32_MAX - REGARG( 2 ) + 1 ), curopc.args[ 3 ] ) );
+	//regaddsub( UINT32_MAX - proc.regs[ curopc.args[ 1 ] ] + 1 );
 }
 
 OPCODE( mul ) {
+	proc.flags &= ~( ZF | SF );
+
+	int64 result = (int32) REGARG( 0 ) * (int32) REGARG( 1 );
+
+	* (int32 *) &REGARG( 2 ) = result & 0xFFFFFFFF;
+	* (int32 *) &REGARG( 3 ) = ( result >> 32 ) & 0xFFFFFFFF;
+
+	if ( result == 0 )
+		proc.flags |= ZF;
+	else if ( result < 0 )
+		proc.flags |= SF;
 }
 
+OPCODE( mul_u ) {
+	uint64 result = REGARG( 0 ) * REGARG( 1 );
 
-#define checkZeroFlag( value ) if ( value == 0 ) proc.flags |= ZF; else proc.flags &= ~ZF;
+	REGARG( 2 ) = result & 0xFFFFFFFF;
+	REGARG( 3 ) = ( result >> 32 ) & 0xFFFFFFFF;
+
+	checkZeroFlag( result );
+}
+
 
 OPCODE( and ) {
-	proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] & proc.regs[ curopc.args[ 2 ] ] ) + curopc.args[ 3 ];
-	checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+	REGARG( 0 ) = REGARG( 1 ) & REGARG( 2 );
+	checkZeroFlag( REGARG( 0 ) );
 }
-
 OPCODE( and_const ) {
-	proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] & curopc.args[ 2 ] );
-	checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+	REGARG( 0 ) = REGARG( 1 ) & curopc.args[ 2 ];
+	checkZeroFlag( REGARG( 0 ) );
 }
 
 OPCODE( or ) {
-	proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] | proc.regs[ curopc.args[ 2 ] ] ) + curopc.args[ 3 ];
-	checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+	REGARG( 0 ) = REGARG( 1 ) | REGARG( 2 );
+	checkZeroFlag( REGARG( 0 ) );
 }
-
 OPCODE( or_const ) {
-	proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] | curopc.args[ 2 ] );
-	checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+	REGARG( 0 ) = REGARG( 1 ) | curopc.args[ 2 ];
+	checkZeroFlag( REGARG( 0 ) );
 }
 
 OPCODE( xor ) {
-	proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] ^ proc.regs[ curopc.args[ 2 ] ] ) + curopc.args[ 3 ];
-	checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+	REGARG( 0 ) = REGARG( 1 ) ^ REGARG( 2 );
+	checkZeroFlag( REGARG( 0 ) );
 }
-
 OPCODE( xor_const ) {
-	proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] ^ curopc.args[ 2 ] );
-	checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+	REGARG( 0 ) = REGARG( 1 ) ^ curopc.args[ 2 ];
+	checkZeroFlag( REGARG( 0 ) );
 }
 
 OPCODE( shl ) {
-    proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] << proc.regs[ curopc.args[ 2 ] ] ) + curopc.args[ 3 ];
-    checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+	REGARG( 0 ) = REGARG( 1 ) << REGARG( 2 );
+	checkZeroFlag( REGARG( 0 ) );
 }
-
 OPCODE( shl_const ) {
-    proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] << curopc.args[ 2 ] );
-    checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+	REGARG( 0 ) = REGARG( 1 ) << curopc.args[ 2 ];
+	checkZeroFlag( REGARG( 0 ) );
 }
 
 OPCODE( shr ) {
-    proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] >> proc.regs[ curopc.args[ 2 ] ] ) + curopc.args[ 3 ];
-    checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+	REGARG( 0 ) = REGARG( 1 ) >> REGARG( 2 );
+	checkZeroFlag( REGARG( 0 ) );
 }
-
 OPCODE( shr_const ) {
-    proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] >> curopc.args[ 2 ] );
-    checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+	REGARG( 0 ) = REGARG( 1 ) >> curopc.args[ 2 ];
+	checkZeroFlag( REGARG( 0 ) );
 }
 
 OPCODE( neg ) {
-	proc.regs[ curopc.args[ 0 ] ] = ~proc.regs[ curopc.args[ 0 ] ];
+	REGARG( 0 ) = ~REGARG( 0 );
 }
 
 
@@ -303,24 +308,30 @@ void queueInstruction( opcode_pointer opcode, const uint32 opcargs[ static const
 			uint32 newSrcMem = ( opcodeIndex << 26 );
 			uint32 curBitOffset = 6;
 
+			//printf( "OpcIdx. newSrcMem 0x%08X as ( 0x%x ) << 26\n", newSrcMem, opcodeIndex );
+
 			for ( int i = 0; i < argLengths.argsAmount; i++ ) {
 				uint16_t curLength = argLengths.lengths[ i ];
 				curBitOffset += curLength;
 
 				if ( opcargs[ i ] >= (uint32) ( 1 << curLength ) )
 					printf( "queueInstruction(). Warning: in opcode \"%s\" (args[%i] == 0x%04X) >= (field max length 0x%04X). Skipping.\n", opcode_matrix[ (int) opcodeIndex ].name, i, opcargs[ i ], ( 1 << curLength ) );
-				else
-					newSrcMem |= ( ( opcargs[ i ] & ( ( 1 << curLength ) - 1 ) ) << ( 32 - curBitOffset ) );
+				else {
+					uint32 newBitMask = ( ( opcargs[ i ] & ( ( 1 << curLength ) - 1 ) ) << ( 32 - curBitOffset ) );
+					newSrcMem |= newBitMask;
+
+					//printf( "arg[%i]. newSrcMem 0x%08X as ( 0x%X & 0x%04X ) << %i == 0x%04X\n", i, newSrcMem, opcargs[ i ], ( ( 1 << curLength ) - 1 ), ( 32 - curBitOffset ), newBitMask );
+				}
 			}
 
 			* (uint32 *) &mem[ startMemCell ] = newSrcMem;
 
-			printf( "0x%04X: ", startMemCell );
+			printf( " 0x%04X: ", startMemCell );
 
 			for ( int i = 0; i < RISC_INSTRUCTION_LENGTH; i++ )
 				printf( "%02X ", mem[ startMemCell + i ] & 0xFF );
 
-			printf( " [Queue: opcode %-2u \"%s\", orig args %Xh %Xh %Xh %Xh)]\n", opcodeIndex, opcode_matrix[ (int) opcodeIndex ].name, opcargs[ 0 ], opcargs[ 1 ], opcargs[ 2 ], opcargs[ 3 ] );
+			printf( "[Queue: opcode %-2u \"%s\", orig args %Xh %Xh %Xh %Xh)]\n", opcodeIndex, opcode_matrix[ (int) opcodeIndex ].name, opcargs[ 0 ], opcargs[ 1 ], opcargs[ 2 ], opcargs[ 3 ] );
 
 			proc.protectedModeMemStart += RISC_INSTRUCTION_LENGTH;
 		} else {
@@ -335,9 +346,12 @@ void queueInstruction( opcode_pointer opcode, const uint32 opcargs[ static const
 int main( void ) {
 	proc.protectedModeMemStart = MEM_PROG_START;
 
-	queueInstruction( op_load_const, QueueArgs2( 0, 0x1001 ) );
-	queueInstruction( op_load_const, QueueArgs2( 1, 0x2AA0 ) );
-	queueInstruction( op_or, QueueArgs3( 0, 0, 1 ) );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 0, 0x1001 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 0x2AA0 } );
+	queueInstruction( op_or, ( uint32[ 4 ] ){ 0, 0, 1 } );
+	queueInstruction( op_and_const, ( uint32[ 4 ] ){ 1, 1, 0xF0FF } );
+	queueInstruction( op_add_const, ( uint32[ 4 ] ){ 1, 1, 1 } );
+	//queueInstruction( op_sub, ( uint32[ 4 ] ){ 0, 0, 1, 0 } );
 
 /*	queueInstruction( op_mov_const, 0, 100 );
 	queueInstruction( op_mov_const, 1, 28 );
@@ -384,22 +398,24 @@ int main( void ) {
 		uint32 startptr = proc.instructionptr;
 
 		curopc.srcmem.t32 = * (uint32 *) &mem[ startptr ];
-		curopc.id = ( curopc.srcmem.t32 & 0xFF000000 ) >> 26;
+		curopc.id = ( curopc.srcmem.t32 >> 26 );
 
 		opcode_data *opcode = getOpcodeData( curopc.id );
 
 		opcode_structtype_length argLengths = opcode_structtype_lengths[ opcode_matrix[ (int) curopc.id ].structType ];
-		uint32_t curSrcMem = curopc.srcmem.t32;
-		uint32_t curBitMask = 0x0000;
+		uint32 curSrcMem = ( curopc.srcmem.t32 << 6 );
+		uint_fast8_t curBitOffset = 0;
 
-		for ( int i = argLengths.argsAmount - 1; i >= 0; i-- ) {
-			uint32_t curLength = argLengths.lengths[ i ];
+		//printf( "OpIdx. curSrcMem 0x%08X\n", curSrcMem );
 
-			curBitMask = ( 1 << curLength ) - 1;
-			curopc.args[ i ] = curSrcMem & curBitMask;
-			curSrcMem >>= curLength;
+		for ( int i = 0; i < argLengths.argsAmount; i++ ) {
+			uint_fast8_t curLength = argLengths.lengths[ i ];
+			curBitOffset += curLength;
+
+			curopc.args[ i ] = ( curSrcMem >> ( 32 - curBitOffset ) );
+			curSrcMem = ( curSrcMem << curLength ) >> curLength;
+			//printf( "arg %i: 0x%04X. curSrcMem 0x%08X >> %i\n", i, curopc.args[ i ], curSrcMem, 32 - curBitOffset );
 		}
-
 
 		opcodeCall( opcode->address );
 
@@ -414,7 +430,9 @@ int main( void ) {
 
 		puts( "\"]" );
 
-		//printf( " [\\Regs 0x%04X: [0]==0x%X, [1]==0x%X, [2]==0x%X]\n", proc.instructionptr, proc.regs[ 0 ], proc.regs[ 1 ], proc.regs[ 2 ] );
+		//printf( " [\\Regs 0x%04X: [0]==0x%X, [1]==0x%X, [2]==0x%X]", proc.instructionptr, proc.regs[ 0 ], proc.regs[ 1 ], proc.regs[ 2 ] );
+		//printFlags();
+		//puts( "" );
 
 
 		proc.instructionptr += RISC_INSTRUCTION_LENGTH;

@@ -41,6 +41,9 @@
 typedef uint64_t uint64;
 typedef uint32_t uint32;
 typedef uint16_t uint16;
+typedef int64_t int64;
+typedef int32_t int32;
+typedef int16_t int16;
 
 typedef void (opcode_pointer)( void );
 #define OPCODE( shortOpcodeName ) void ( op_ ## shortOpcodeName )( void )
@@ -53,10 +56,11 @@ typedef enum {
 	OF		= 0x0008,	// Overflow flag [Integers only].
 
 	IF		= 0x0010,	// Interrupts enabled flag.
+	TF		= 0x0020,	// Trace enabled flag.
 
-	FDDF	= 0x0020,	// Double-data flag [FloatCPU only].
-	FNF		= 0x0040,	// Infinity value flag [FloatCPU only].
-	FPF		= 0x0080,	// Precision lose flag [FloatCPU only].
+	FDDF	= 0x0100,	// Double-data flag [FloatCPU only].
+	FNF		= 0x0200,	// Infinity value flag [FloatCPU only].
+	FPF		= 0x0400,	// Precision lose flag [FloatCPU only].
 
 	RlModeF	= 0x4000,	// Real (root/system) processor mode flag.
 	EmulEndF= 0x8000,	// Exit flag. Maybe will be removed in future.
@@ -76,15 +80,27 @@ typedef struct {
 	uint32 args[ 4 ];
 } opcode_mem_struct;
 
+#define REGARG( index ) proc.regs[ curopc.args[ index ] ]
+
+#define checkZeroFlag( value )\
+if ( value == 0 )\
+	proc.flags |= ZF;\
+else\
+	proc.flags &= ~ZF;
 
 
 typedef enum {
 	OPST_None = 0,	// No args.
-	OPST_1Regs,		// 5:[r1], 21:const.
-	OPST_2Regs,		// 5:[r1], 5:[r2], 16:const.
-	OPST_3Regs,		// 5:[r1], 5:[r2], 5:[r3], 11:const.
-	OPST_4Regs,		// 5:[r1], 5:[r2], 5:[r3], 5:[r4].
-	OPST_Const,
+	OPST_1Reg,		// 5:[r1].
+	OPST_1RegC,		// 5:[r1], 21:const.
+	OPST_2Reg,		// 5:[r1], 5:[r2].
+	OPST_2RegC,		// 5:[r1], 5:[r2], 16:const.
+	OPST_3Reg,		// 5:[r1], 5:[r2], 5:[r3].
+	OPST_3RegC,		// 5:[r1], 5:[r2], 5:[r3], 11:const.
+	OPST_4Reg,		// 5:[r1], 5:[r2], 5:[r3], 5:[r4].
+	OPST_ByteConst,	// 8:const.
+	OPST_WordConst,	// 16:const.
+	OPST_MaxConst,	// 26:const.
 } EOpcodeStructureType;
 
 typedef struct _opcode_structtype_bitlength {
@@ -94,19 +110,17 @@ typedef struct _opcode_structtype_bitlength {
 
 opcode_structtype_length opcode_structtype_lengths[] = {
 	{ 0 },
+	{ 1, { 5 } },
 	{ 2, { 5, 21 } },
+	{ 2, { 5, 5 } },
 	{ 3, { 5, 5, 16 } },
+	{ 3, { 5, 5, 5 } },
 	{ 4, { 5, 5, 5, 11 } },
 	{ 4, { 5, 5, 5, 5 } },
+	{ 1, { 8 } },
+	{ 1, { 16 } },
 	{ 1, { 26 } }
 };
-
-#define QueueArgs0() ( uint32[ 4 ] ){ 0 }
-#define QueueArgs1( arg1 ) ( uint32[ 4 ] ){ arg1, 0, 0, 0 }
-#define QueueArgs2( arg1, arg2 ) ( uint32[ 4 ] ){ arg1, arg2, 0, 0 }
-#define QueueArgs3( arg1, arg2, arg3 ) ( uint32[ 4 ] ){ arg1, arg2, arg3, 0 }
-#define QueueArgs4( arg1, arg2, arg3, arg4 ) ( uint32[ 4 ] ){ arg1, arg2, arg3, arg4 }
-
 
 
 /*typedef union {
