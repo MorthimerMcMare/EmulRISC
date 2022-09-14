@@ -46,6 +46,7 @@ OPCODE( store_dword ) {
 	* (uint32 *) &mem[ curopc.args[ 0 ] ] = proc.regs[ curopc.args[ 1 ] ] + curopc.args[ 2 ];
 }
 
+/*
 // Stores a 32-bit register into memory.
 //   arg0: memory cell to save to.
 //   arg1: register index.
@@ -58,17 +59,11 @@ OPCODE( save_reg ) {
 OPCODE( load_reg ) {
 	proc.regs[ curopc.args[ 0 ] ] = (uint32) mem[ curopc.args[ 1 ] ];
 }
+*/
 
 
 
 /* Registers control: */
-
-// Moves a register value to other register.
-//   arg0: register index to save to.
-//   arg1: source register index.
-OPCODE( mov_reg ) {
-	proc.regs[ curopc.args[ 0 ] ] = proc.regs[ curopc.args[ 1 ] ];
-}
 
 void regaddsub( uint32 value ) {
 	proc.flags &= ~( ZF | SF | OF );
@@ -91,16 +86,75 @@ void regaddsub( uint32 value ) {
 OPCODE( add_const ) {
 	regaddsub( curopc.args[ 1 ] );
 }
-OPCODE( add_reg ) {
+OPCODE( add ) {
 	regaddsub( proc.regs[ curopc.args[ 1 ] ] );
 }
 OPCODE( sub_const ) {
 	regaddsub( UINT32_MAX - curopc.args[ 1 ] + 1 );
 }
-OPCODE( sub_reg ) {
+OPCODE( sub ) {
 	regaddsub( UINT32_MAX - proc.regs[ curopc.args[ 1 ] ] + 1 );
 }
 
+OPCODE( mul ) {
+}
+
+
+#define checkZeroFlag( value ) if ( value == 0 ) proc.flags |= ZF; else proc.flags &= ~ZF;
+
+OPCODE( and ) {
+	proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] & proc.regs[ curopc.args[ 2 ] ] ) + curopc.args[ 3 ];
+	checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+}
+
+OPCODE( and_const ) {
+	proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] & curopc.args[ 2 ] );
+	checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+}
+
+OPCODE( or ) {
+	proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] | proc.regs[ curopc.args[ 2 ] ] ) + curopc.args[ 3 ];
+	checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+}
+
+OPCODE( or_const ) {
+	proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] | curopc.args[ 2 ] );
+	checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+}
+
+OPCODE( xor ) {
+	proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] ^ proc.regs[ curopc.args[ 2 ] ] ) + curopc.args[ 3 ];
+	checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+}
+
+OPCODE( xor_const ) {
+	proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] ^ curopc.args[ 2 ] );
+	checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+}
+
+OPCODE( shl ) {
+    proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] << proc.regs[ curopc.args[ 2 ] ] ) + curopc.args[ 3 ];
+    checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+}
+
+OPCODE( shl_const ) {
+    proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] << curopc.args[ 2 ] );
+    checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+}
+
+OPCODE( shr ) {
+    proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] >> proc.regs[ curopc.args[ 2 ] ] ) + curopc.args[ 3 ];
+    checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+}
+
+OPCODE( shr_const ) {
+    proc.regs[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] >> curopc.args[ 2 ] );
+    checkZeroFlag( proc.regs[ curopc.args[ 0 ] ] );
+}
+
+OPCODE( neg ) {
+	proc.regs[ curopc.args[ 0 ] ] = ~proc.regs[ curopc.args[ 0 ] ];
+}
 
 
 /* Complex, auxiliary and other special opcodes: */
@@ -281,8 +335,9 @@ void queueInstruction( opcode_pointer opcode, const uint32 opcargs[ static const
 int main( void ) {
 	proc.protectedModeMemStart = MEM_PROG_START;
 
-	queueInstruction( op_load_const, QueueArgs2( 0, 2 ) );
-	queueInstruction( op_load_const, QueueArgs2( 1, 11 ) );
+	queueInstruction( op_load_const, QueueArgs2( 0, 0x1001 ) );
+	queueInstruction( op_load_const, QueueArgs2( 1, 0x2AA0 ) );
+	queueInstruction( op_or, QueueArgs3( 0, 0, 1 ) );
 
 /*	queueInstruction( op_mov_const, 0, 100 );
 	queueInstruction( op_mov_const, 1, 28 );
@@ -359,7 +414,7 @@ int main( void ) {
 
 		puts( "\"]" );
 
-		//printf( " [Regs  0x%04X: [0]==0x%X, [1]==0x%X]\n", proc.instructionptr, proc.regs[ 0 ], proc.regs[ 1 ] );
+		//printf( " [\\Regs 0x%04X: [0]==0x%X, [1]==0x%X, [2]==0x%X]\n", proc.instructionptr, proc.regs[ 0 ], proc.regs[ 1 ], proc.regs[ 2 ] );
 
 
 		proc.instructionptr += RISC_INSTRUCTION_LENGTH;
