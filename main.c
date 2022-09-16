@@ -283,6 +283,8 @@ void printFlags( void ) {
 		putchar( 'O' );
 	if ( proc.flags & IF )
 		putchar( 'I' );
+	if ( proc.flags & TF )
+		putchar( 'T' );
 
 	if ( proc.flags & FDDF )
 		printf( "[fdd]" );
@@ -314,9 +316,9 @@ void queueInstruction( opcode_pointer opcode, const uint32 opcargs[ static const
 				uint16_t curLength = argLengths.lengths[ i ];
 				curBitOffset += curLength;
 
-				if ( opcargs[ i ] >= (uint32) ( 1 << curLength ) )
+				if ( opcargs[ i ] >= (uint32) ( 1 << curLength ) ) {
 					printf( "queueInstruction(). Warning: in opcode \"%s\" (args[%i] == 0x%04X) >= (field max length 0x%04X). Skipping.\n", opcode_matrix[ (int) opcodeIndex ].name, i, opcargs[ i ], ( 1 << curLength ) );
-				else {
+				} else {
 					uint32 newBitMask = ( ( opcargs[ i ] & ( ( 1 << curLength ) - 1 ) ) << ( 32 - curBitOffset ) );
 					newSrcMem |= newBitMask;
 
@@ -350,8 +352,8 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 0x2AA0 } );
 	queueInstruction( op_or, ( uint32[ 4 ] ){ 0, 0, 1 } );
 	queueInstruction( op_and_const, ( uint32[ 4 ] ){ 1, 1, 0xF0FF } );
-	queueInstruction( op_add_const, ( uint32[ 4 ] ){ 1, 1, 1 } );
-	//queueInstruction( op_sub, ( uint32[ 4 ] ){ 0, 0, 1, 0 } );
+	queueInstruction( op_add_const, ( uint32[ 4 ] ){ 3, 1, 1 } );
+	queueInstruction( op_sub, ( uint32[ 4 ] ){ 0, 1, 1, 1 } );
 
 /*	queueInstruction( op_mov_const, 0, 100 );
 	queueInstruction( op_mov_const, 1, 28 );
@@ -390,7 +392,8 @@ int main( void ) {
 	proc.protectedModeMemStart += ( 1024 - proc.protectedModeMemStart ) % 1024;
 	proc.instructionptr = MEM_PROG_START;
 
-	int exit_countdown = 8;
+	const int MAX_EXIT_DOWNCOUNTER = 8;
+	int exit_countdown = MAX_EXIT_DOWNCOUNTER;
 	unsigned char last_opcode_id_exitcheck = 0;
 
 	while ( !( proc.flags & EmulEndF ) ) {
@@ -404,17 +407,15 @@ int main( void ) {
 
 		opcode_structtype_length argLengths = opcode_structtype_lengths[ opcode_matrix[ (int) curopc.id ].structType ];
 		uint32 curSrcMem = ( curopc.srcmem.t32 << 6 );
-		uint_fast8_t curBitOffset = 0;
 
 		//printf( "OpIdx. curSrcMem 0x%08X\n", curSrcMem );
 
 		for ( int i = 0; i < argLengths.argsAmount; i++ ) {
 			uint_fast8_t curLength = argLengths.lengths[ i ];
-			curBitOffset += curLength;
 
-			curopc.args[ i ] = ( curSrcMem >> ( 32 - curBitOffset ) );
-			curSrcMem = ( curSrcMem << curLength ) >> curLength;
-			//printf( "arg %i: 0x%04X. curSrcMem 0x%08X >> %i\n", i, curopc.args[ i ], curSrcMem, 32 - curBitOffset );
+			curopc.args[ i ] = ( curSrcMem >> ( 32 - curLength ) );
+			curSrcMem = ( curSrcMem << curLength );
+			//printf( "arg %i: 0x%04X. curSrcMem 0x%08X >> %i\n", i, curopc.args[ i ], curSrcMem, 32 - curLength );
 		}
 
 		opcodeCall( opcode->address );
@@ -444,7 +445,7 @@ int main( void ) {
 				proc.flags |= EmulEndF;
 			}
 		} else {
-			exit_countdown = 8;
+			exit_countdown = MAX_EXIT_DOWNCOUNTER;
 		}
 
 	} // of while ( !( proc.flags & EmulEndF ) ) {}
