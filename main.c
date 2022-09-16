@@ -139,22 +139,26 @@ OPCODE( xor_const ) {
 	checkZeroFlag( REGARG( 0 ) );
 }
 
-OPCODE( shl ) {
-	REGARG( 0 ) = REGARG( 1 ) << REGARG( 2 );
-	checkZeroFlag( REGARG( 0 ) );
-}
 OPCODE( shl_const ) {
+	proc.flags = ( proc.flags & ~OF ) | ( OF * !!( (uint32) curopc.args[ 2 ] > 32 ) ); // Too far shift.
+	proc.flags = ( proc.flags & ~CF ) | ( CF * !!( REGARG( 1 ) & ( 1 << (UINT32_MAX - curopc.args[ 2 ] - 1) ) ) ); // Save last shifted bit.
 	REGARG( 0 ) = REGARG( 1 ) << curopc.args[ 2 ];
 	checkZeroFlag( REGARG( 0 ) );
 }
-
-OPCODE( shr ) {
-	REGARG( 0 ) = REGARG( 1 ) >> REGARG( 2 );
-	checkZeroFlag( REGARG( 0 ) );
+OPCODE( shl ) {
+	curopc.args[ 2 ] = REGARG( 2 );
+	op_shl_const();
 }
+
 OPCODE( shr_const ) {
+	proc.flags = ( proc.flags & ~OF ) | ( OF * !!( (uint32) curopc.args[ 2 ] > 32 ) ); // Too far shift.
+	proc.flags = ( proc.flags & ~CF ) | ( CF * !!( REGARG( 1 ) & ( 1 << (curopc.args[ 2 ] - 1) ) ) ); // Save last shifted bit.
 	REGARG( 0 ) = REGARG( 1 ) >> curopc.args[ 2 ];
 	checkZeroFlag( REGARG( 0 ) );
+}
+OPCODE( shr ) {
+	curopc.args[ 2 ] = REGARG( 2 );
+	op_shr_const();
 }
 
 OPCODE( neg ) {
@@ -231,9 +235,7 @@ OPCODE( ret ) {
 }*/
 
 OPCODE( jmp_const ) {
-	int validInstruction = ( curopc.args[ 0 ] >= MEM_PROG_START && curopc.args[ 0 ] < proc.protectedModeMemStart && ( ( curopc.args[ 0 ] - MEM_PROG_START ) % RISC_INSTRUCTION_LENGTH ) == 0 );
-
-	if ( validInstruction || ( proc.flags & RlModeF ) ) {
+	if ( ( proc.flags & RlModeF ) || ( curopc.args[ 0 ] >= MEM_PROG_START && curopc.args[ 0 ] < proc.protectedModeMemStart && ( ( curopc.args[ 0 ] - MEM_PROG_START ) % RISC_INSTRUCTION_LENGTH ) == 0 ) ) {
 		proc.instructionptr = curopc.args[ 0 ];
 	} else {
 		// An error call must be here.
@@ -353,7 +355,7 @@ int main( void ) {
 	queueInstruction( op_or, ( uint32[ 4 ] ){ 0, 0, 1 } );
 	queueInstruction( op_and_const, ( uint32[ 4 ] ){ 1, 1, 0xF0FF } );
 	queueInstruction( op_add_const, ( uint32[ 4 ] ){ 3, 1, 1 } );
-	queueInstruction( op_sub, ( uint32[ 4 ] ){ 0, 1, 1, 1 } );
+	queueInstruction( op_shr_const, ( uint32[ 4 ] ){ 0, 0, 4 } );
 
 /*	queueInstruction( op_mov_const, 0, 100 );
 	queueInstruction( op_mov_const, 1, 28 );
@@ -392,7 +394,7 @@ int main( void ) {
 	proc.protectedModeMemStart += ( 1024 - proc.protectedModeMemStart ) % 1024;
 	proc.instructionptr = MEM_PROG_START;
 
-	const int MAX_EXIT_DOWNCOUNTER = 8;
+	const int MAX_EXIT_DOWNCOUNTER = 4;
 	int exit_countdown = MAX_EXIT_DOWNCOUNTER;
 	unsigned char last_opcode_id_exitcheck = 0;
 
