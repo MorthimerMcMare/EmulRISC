@@ -221,46 +221,55 @@ OPCODE( nop ) {}
 		//opcodeCall1( op_int, MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_FIRST + 2 );
 		printf( "op_int(). Null address in interrupt vector table for cell %i.\n", interruptNumber );
 	}
-}
-
-OPCODE( ret ) {
-	int prevreg0 = proc.regs[ 0 ];
-
-	// Load last instruction position:
-	curopc.args[ 0 ] = 0;
-	op_stack_popreg();
-	proc.instructionptr = proc.regs[ 0 ];
-
-	proc.regs[ 0 ] = prevreg0;
 }*/
 
+OPCODE( call_const ) {	// "JAL r_saveto, const_offset".
+	REGARG( 0 ) = proc.instructionptr + RISC_INSTRUCTION_LENGTH;
+	proc.instructionptr += curopc.args[ 1 ];
+}
+OPCODE( call_reg ) {	// "JALR r_saveto, r_offset, const_offset".
+	REGARG( 0 ) = proc.instructionptr + RISC_INSTRUCTION_LENGTH;
+	proc.instructionptr += REGARG( 1 ) + curopc.args[ 2 ];
+}
+
 OPCODE( jmp_const ) {
-	if ( ( proc.flags & RlModeF ) || ( curopc.args[ 0 ] >= MEM_PROG_START && curopc.args[ 0 ] < proc.protectedModeMemStart && ( ( curopc.args[ 0 ] - MEM_PROG_START ) % RISC_INSTRUCTION_LENGTH ) == 0 ) ) {
-		proc.instructionptr = curopc.args[ 0 ];
-	} else {
-		// An error call must be here.
-		//opcodeCall1( op_int, MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_FIRST + 1 );
-		printf( "op_jmp(). Wrong adress %04X (checks: '>= %04X', '< %04X', 'modulo %i == %i' ).\n", curopc.args[ 0 ], MEM_PROG_START, proc.protectedModeMemStart, RISC_INSTRUCTION_LENGTH, ( curopc.args[ 0 ] - MEM_PROG_START ) % RISC_INSTRUCTION_LENGTH );
-	}
+	proc.instructionptr = curopc.args[ 0 ];
 }
-
 OPCODE( jmp_reg ) {
-	curopc.args[ 0 ] = proc.regs[ curopc.args[ 0 ] ];
-	op_jmp_const();
+	proc.instructionptr = REGARG( 0 );
 }
 
-OPCODE( jz_const ) {
-	if ( proc.flags & ZF ) op_jmp_const();
-}
-OPCODE( jz_reg ) {
-	if ( proc.flags & ZF ) op_jmp_reg();
-}
-OPCODE( jnz_const ) {
-	if ( !( proc.flags & ZF ) ) op_jmp_const();
-}
-OPCODE( jnz_reg ) {
-	if ( !( proc.flags & ZF ) ) op_jmp_reg();
-}
+OPCODE( jz_const ) 	{ if ( proc.flags & ZF ) proc.instructionptr = curopc.args[ 0 ]; }
+OPCODE( jz_reg ) 	{ if ( proc.flags & ZF ) proc.instructionptr = REGARG( 0 ); }
+OPCODE( jnz_const )	{ if ( !( proc.flags & ZF ) ) proc.instructionptr = curopc.args[ 0 ]; }
+OPCODE( jnz_reg ) 	{ if ( !( proc.flags & ZF ) ) proc.instructionptr = REGARG( 0 ); }
+
+OPCODE( js_const ) 	{ if ( proc.flags & SF ) proc.instructionptr = curopc.args[ 0 ]; }
+OPCODE( js_reg ) 	{ if ( proc.flags & SF ) proc.instructionptr = REGARG( 0 ); }
+OPCODE( jns_const )	{ if ( !( proc.flags & SF ) ) proc.instructionptr = curopc.args[ 0 ]; }
+OPCODE( jns_reg ) 	{ if ( !( proc.flags & SF ) ) proc.instructionptr = REGARG( 0 ); }
+
+OPCODE( jo_const ) 	{ if ( proc.flags & OF ) proc.instructionptr = curopc.args[ 0 ]; }
+OPCODE( jo_reg ) 	{ if ( proc.flags & OF ) proc.instructionptr = REGARG( 0 ); }
+OPCODE( jno_const )	{ if ( !( proc.flags & OF ) ) proc.instructionptr = curopc.args[ 0 ]; }
+OPCODE( jno_reg ) 	{ if ( !( proc.flags & OF ) ) proc.instructionptr = REGARG( 0 ); }
+
+OPCODE( jc_const ) 	{ if ( proc.flags & CF ) proc.instructionptr = curopc.args[ 0 ]; }
+OPCODE( jc_reg ) 	{ if ( proc.flags & CF ) proc.instructionptr = REGARG( 0 ); }
+OPCODE( jnc_const )	{ if ( !( proc.flags & CF ) ) proc.instructionptr = curopc.args[ 0 ]; }
+OPCODE( jnc_reg ) 	{ if ( !( proc.flags & CF ) ) proc.instructionptr = REGARG( 0 ); }
+
+OPCODE( beq ) { if ( REGARG( 0 ) == REGARG( 1 ) ) proc.instructionptr = curopc.args[ 2 ]; }
+OPCODE( bne ) { if ( REGARG( 0 ) != REGARG( 1 ) ) proc.instructionptr = curopc.args[ 2 ]; }
+
+OPCODE( blt ) { if ( (int32) REGARG( 0 ) <  (int32) REGARG( 1 ) ) proc.instructionptr = curopc.args[ 2 ]; }
+OPCODE( bge ) { if ( (int32) REGARG( 0 ) >= (int32) REGARG( 1 ) ) proc.instructionptr = curopc.args[ 2 ]; }
+
+OPCODE( bltu ) { if ( (uint32) REGARG( 0 ) <  (uint32) REGARG( 1 ) ) proc.instructionptr = curopc.args[ 2 ]; }
+OPCODE( bgeu ) { if ( (uint32) REGARG( 0 ) >= (uint32) REGARG( 1 ) ) proc.instructionptr = curopc.args[ 2 ]; }
+
+
+
 
 
 // ====================
@@ -394,7 +403,7 @@ int main( void ) {
 	proc.protectedModeMemStart += ( 1024 - proc.protectedModeMemStart ) % 1024;
 	proc.instructionptr = MEM_PROG_START;
 
-	const int MAX_EXIT_DOWNCOUNTER = 4;
+	const int MAX_EXIT_DOWNCOUNTER = 8;
 	int exit_countdown = MAX_EXIT_DOWNCOUNTER;
 	unsigned char last_opcode_id_exitcheck = 0;
 
@@ -439,6 +448,7 @@ int main( void ) {
 
 
 		proc.instructionptr += RISC_INSTRUCTION_LENGTH;
+		proc.zero = 0;
 
 		// Emergency exit check:
 		if ( curopc.id == last_opcode_id_exitcheck ) {
