@@ -47,6 +47,8 @@ struct _processor {
 
 	uint32 protectedModeMemStart;
 	uint32 instructionptr;
+	uint32 tlb; // uint32 *TranslateLookasideBuffer[ 64 ]
+	uint32 bva; // Bad virtual address.
 } proc;
 
 

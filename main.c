@@ -7,6 +7,7 @@
 #include "defines.h"	// Constants, defines, ...
 #include "internal.h"	// Core and memory data.
 #include "opmatrix.h"	// Opcodes matrix.
+#include "bios.h"		// QuasiBIOS functions.
 
 void opcodeCall( opcode_pointer );
 void printFlags( void );
@@ -20,34 +21,35 @@ void printFlags( void );
 /* Main memory control: */
 
 OPCODE( mov_const ) {
-	proc.regs[ curopc.args[ 0 ] ] = curopc.args[ 1 ];
+	REGARG( 0 ) = curopc.args[ 1 ];
 }
 OPCODE( load_byte ) {
-	proc.regs[ curopc.args[ 0 ] ] = mem[ curopc.args[ 1 ] ] + curopc.args[ 2 ];
+	REGARG( 0 ) = mem[ curopc.args[ 1 ] ] + curopc.args[ 2 ];
 }
 OPCODE( load_word ) {
-	proc.regs[ curopc.args[ 0 ] ] = ( * (uint16 *) &mem[ curopc.args[ 1 ] ] ) + curopc.args[ 2 ];
+	REGARG( 0 ) = ( * (uint16 *) &mem[ curopc.args[ 1 ] ] ) + curopc.args[ 2 ];
 }
 OPCODE( load_dword ) {
-	proc.regs[ curopc.args[ 0 ] ] = ( * (uint32 *) &mem[ curopc.args[ 1 ] ] ) + curopc.args[ 2 ];
+	REGARG( 0 ) = ( * (uint32 *) &mem[ curopc.args[ 1 ] ] ) + curopc.args[ 2 ];
 }
 
 
 OPCODE( store_lbyte ) {
-	mem[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] & 0xFF ) + curopc.args[ 2 ];
+	mem[ curopc.args[ 0 ] ] = REGARG( 1 ) & 0xFF;
+	//printf( "mem[ 0x%X ] = 0x%02X (really saved 0x%02X '%c')\n", curopc.args[ 0 ], ( REGARG( 1 ) + curopc.args[ 2 ] ) & 0xFF, (char) mem[ curopc.args[ 0 ] ], (char) mem[ curopc.args[ 0 ] ] );
 }
 OPCODE( store_hbyte ) {
-	mem[ curopc.args[ 0 ] ] = ( ( proc.regs[ curopc.args[ 1 ] ] >> 8 ) & 0xFF ) + curopc.args[ 2 ];
+	mem[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] >> 8 ) & 0xFF;
 }
 OPCODE( store_word ) {
-	* (uint16 *) &mem[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] & 0xFFFF ) + curopc.args[ 2 ];
+	* (uint16 *) &mem[ curopc.args[ 0 ] ] = proc.regs[ curopc.args[ 1 ] ] & 0xFFFF;
 }
 OPCODE( store_dword ) {
-	* (uint32 *) &mem[ curopc.args[ 0 ] ] = proc.regs[ curopc.args[ 1 ] ] + curopc.args[ 2 ];
+	* (uint32 *) &mem[ curopc.args[ 0 ] ] = proc.regs[ curopc.args[ 1 ] ];
 }
 
 
-/* Registers control: */
+/* Math and logical opcodes: */
 
 uint64 setAddOverflow( uint32 val1, uint32 val2 ) {
 	uint64 resultadd = ( val1 + val2 );
@@ -166,34 +168,29 @@ OPCODE( neg ) {
 }
 
 
-/* Complex, auxiliary and other special opcodes: */
-
-// Prints a string to the stdout (aux.).
-//   Reg0: index of the first memory char cell;
-//   Reg1: maximal amount of symbols.
-OPCODE( bios_printstr ) {
-	char *curchar = &mem[ proc.regs[ 0 ] ];
-
-	uint32 maxchars = proc.regs[ 1 ];
-	if ( maxchars == 0 )
-		maxchars = UINT32_MAX;
-
-	for ( uint32 i = maxchars; *curchar != '\x0' && i > 0; curchar++, i-- )
-		putchar( *curchar );
-
-	puts( "" );
-}
-
 OPCODE( nop ) {}
 
 
-/*OPCODE( int ) {
+/* Jumps: */
+
+OPCODE( call_const ) {	// "JAL r_saveto, const_offset".
+	REGARG( 0 ) = proc.instructionptr + RISC_INSTRUCTION_LENGTH;
+	proc.instructionptr += curopc.args[ 1 ];
+}
+OPCODE( call_reg ) {	// "JALR r_saveto, r_offset, const_offset".
+	REGARG( 0 ) = proc.instructionptr + RISC_INSTRUCTION_LENGTH;
+	proc.instructionptr += REGARG( 1 ) + curopc.args[ 2 ];
+}
+
+OPCODE( int ) {
 	int interruptNumber = curopc.args[ 0 ];
 
 	uint32 interruptCodePtr = MEM_INTERRUPT_VECTOR_TABLE_START + interruptNumber * sizeof( uint32 );
 
 	// "BIOS" interrupts are overridden only if address value in the IVT is not equals to zero:
-	if ( interruptNumber < MEM_INTERRUPT_VECTOR_TABLE_BIOS_AMOUNT && mem[ interruptCodePtr ] == 0 ) {
+	if ( interruptNumber - MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_AMOUNT < MEM_INTERRUPT_VECTOR_TABLE_BIOS_AMOUNT && mem[ interruptCodePtr ] == 0 ) {
+		interruptNumber -= MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_AMOUNT;
+
 		// Temporal, nasty solution.
 		switch ( interruptNumber ) {
 			case 0:
@@ -206,37 +203,21 @@ OPCODE( nop ) {}
 				break;
 		}
 	} else if ( mem[ interruptCodePtr ] != 0 ) {
-		int prevreg0 = proc.regs[ 0 ];
-
 		// Save last instruction position:
-		proc.regs[ 0 ] = proc.instructionptr;
-		curopc.args[ 0 ] = 0;
-		op_stack_pushreg();
-
-		proc.regs[ 0 ] = prevreg0;
-
+		proc.ra = proc.instructionptr;
 		proc.instructionptr = mem[ interruptCodePtr ];
 	} else {
 		// An error call must be here.
 		//opcodeCall1( op_int, MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_FIRST + 2 );
 		printf( "op_int(). Null address in interrupt vector table for cell %i.\n", interruptNumber );
 	}
-}*/
-
-OPCODE( call_const ) {	// "JAL r_saveto, const_offset".
-	REGARG( 0 ) = proc.instructionptr + RISC_INSTRUCTION_LENGTH;
-	proc.instructionptr += curopc.args[ 1 ];
-}
-OPCODE( call_reg ) {	// "JALR r_saveto, r_offset, const_offset".
-	REGARG( 0 ) = proc.instructionptr + RISC_INSTRUCTION_LENGTH;
-	proc.instructionptr += REGARG( 1 ) + curopc.args[ 2 ];
 }
 
 OPCODE( jmp_const ) {
-	proc.instructionptr = curopc.args[ 0 ];
+	proc.instructionptr += RISC_INSTRUCTION_LENGTH * (int32) curopc.args[ 0 ];
 }
 OPCODE( jmp_reg ) {
-	proc.instructionptr = REGARG( 0 );
+	proc.instructionptr = RISC_INSTRUCTION_LENGTH * REGARG( 0 );
 }
 
 OPCODE( jz_const ) 	{ if ( proc.flags & ZF ) proc.instructionptr = curopc.args[ 0 ]; }
@@ -357,36 +338,36 @@ void queueInstruction( opcode_pointer opcode, const uint32 opcargs[ static const
 
 
 int main( void ) {
-	proc.protectedModeMemStart = MEM_PROG_START;
+	proc.protectedModeMemStart = MEM_PROG_KERNEL_START;
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 0, 0x1001 } );
+	/*queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 0, 0x1001 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 0x2AA0 } );
 	queueInstruction( op_or, ( uint32[ 4 ] ){ 0, 0, 1 } );
 	queueInstruction( op_and_const, ( uint32[ 4 ] ){ 1, 1, 0xF0FF } );
 	queueInstruction( op_add_const, ( uint32[ 4 ] ){ 3, 1, 1 } );
-	queueInstruction( op_shr_const, ( uint32[ 4 ] ){ 0, 0, 4 } );
+	queueInstruction( op_shr_const, ( uint32[ 4 ] ){ 0, 0, 4 } );*/
 
-/*	queueInstruction( op_mov_const, 0, 100 );
-	queueInstruction( op_mov_const, 1, 28 );
-	queueInstruction( op_sub_reg, 0, 1 );		// 'H'
-	queueInstruction( op_add_const, 1, 77 );	// 'i'
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 100 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 2, 28 } );
+	queueInstruction( op_sub, ( uint32[ 4 ] ){ 1, 1, 2 } );		// 'H'
+	queueInstruction( op_add_const, ( uint32[ 4 ] ){ 2, 2, 77 } );	// 'i'
 
-	queueInstruction( op_save_reg, 0x4001, 1 );
-	queueInstruction( op_save_reg, 0x4000, 0 );
+	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60001, 2 } );
+	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60000, 1 } );
 
-	queueInstruction( op_mov_const, 0, '!' );	// '!'
-	queueInstruction( op_save_reg, 0x4002, 0 );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, '!' } );	// '!'
+	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60002, 1 } );
 
-	queueInstruction( op_mov_const, 0, 0x4000 );
-	queueInstruction( op_mov_const, 1, 0 );
-	queueInstruction( op_jmp_const, proc.protectedModeMemStart + RISC_INSTRUCTION_LENGTH * 2, 0 );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0x60000 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
+	queueInstruction( op_jmp_const, ( uint32[ 4 ] ){ 2 } );
 
-	queueInstruction( op_nop, 0, 0 );				// Must be skipped;
-	queueInstruction( op_mov_const, 0, 0xABCD );	// Must be skipped.
+	queueInstruction( op_nop, ( uint32[ 4 ] ){} );					// Must be skipped;
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 0, 0xABCD } );	// Must be skipped.
 
-	queueInstruction( op_int, 1, 0 ); // Prints a string (via quasiBIOS).
+	queueInstruction( op_int, ( uint32[ 4 ] ){ MEM_INTERRUPT_VECTOR_TABLE_BIOS_FIRST + 1 } ); // Prints a string (via quasiBIOS).
 
-	queueInstruction( op_mov_const, 0, 16 );
+	/*queueInstruction( op_mov_const, 0, 16 );
 	queueInstruction( op_mov_const, 1, -16 );
 	queueInstruction( op_add_reg, 0, 1 );
 
@@ -394,14 +375,13 @@ int main( void ) {
 	queueInstruction( op_mov_const, 2, 'z' );
 	queueInstruction( op_save_reg, 0x4400, 2 );
 	queueInstruction( op_mov_const, 0, 0x4400 );
-	queueInstruction( op_int, 1, 0 );
+	queueInstruction( op_int, 1, 0 );*/
 
-	queueInstruction( op_int, 0, 0 ); // Ends emulation (via quasiBIOS).
-	*/
+	queueInstruction( op_int, ( uint32[ 4 ] ){ MEM_INTERRUPT_VECTOR_TABLE_BIOS_FIRST } ); // Ends emulation (via quasiBIOS).
 
 	puts( "================" );
 	proc.protectedModeMemStart += ( 1024 - proc.protectedModeMemStart ) % 1024;
-	proc.instructionptr = MEM_PROG_START;
+	proc.instructionptr = MEM_PROG_KERNEL_START;
 
 	const int MAX_EXIT_DOWNCOUNTER = 8;
 	int exit_countdown = MAX_EXIT_DOWNCOUNTER;
@@ -429,10 +409,8 @@ int main( void ) {
 			//printf( "arg %i: 0x%04X. curSrcMem 0x%08X >> %i\n", i, curopc.args[ i ], curSrcMem, 32 - curLength );
 		}
 
-		opcodeCall( opcode->address );
-
 		// Debug tracing (seems to be temporal):
-		printf( " [Trace 0x%04X: \"%8s", proc.instructionptr, opcode_matrix[ (int) curopc.id ].name );
+		printf( " [Trace 0x%04X: \"%8s ", proc.instructionptr, opcode_matrix[ (int) curopc.id ].name );
 
 		for ( int i = 0; i < argLengths.argsAmount - 1; i++ )
 			printf( "%4Xh, ", curopc.args[ i ] );
@@ -442,9 +420,10 @@ int main( void ) {
 
 		puts( "\"]" );
 
-		//printf( " [\\Regs 0x%04X: [0]==0x%X, [1]==0x%X, [2]==0x%X]", proc.instructionptr, proc.regs[ 0 ], proc.regs[ 1 ], proc.regs[ 2 ] );
+		opcodeCall( opcode->address );
+
+		//printf( " [\\Post regs: [0]==0x%X, [1]==0x%X, [2]==0x%X]", proc.regs[ 0 ], proc.regs[ 1 ], proc.regs[ 2 ] );
 		//printFlags();
-		//puts( "" );
 
 
 		proc.instructionptr += RISC_INSTRUCTION_LENGTH;

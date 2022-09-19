@@ -10,10 +10,14 @@
 #define MAX_REGS 32 /* As 2^5. */
 #define MAX_FLOAT_REGS 16
 
-#define MAX_MEM (1024 * 1024) /* Statically allocated 1 MB. */
+#define MAX_MEM (1024 * 1024 * 64) /* Statically allocated 64 MB. */
+
+// Main statical:
+
+#define MEM_KERNEL_START 0
 
 /* 256 interrupt addresses in table at all. */
-#define MEM_INTERRUPT_VECTOR_TABLE_START 0
+#define MEM_INTERRUPT_VECTOR_TABLE_START 1024
 #define MEM_INTERRUPT_VECTOR_TABLE_END (MEM_INTERRUPT_VECTOR_TABLE_START + 4 * 256 - 1)
 /* 16 exceptions interrupt addresses: */
 #define MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_FIRST 0
@@ -27,14 +31,30 @@
 #define MEM_INTERRUPT_VECTOR_TABLE_USER_FIRST (MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_AMOUNT + MEM_INTERRUPT_VECTOR_TABLE_BIOS_AMOUNT)
 #define MEM_INTERRUPT_VECTOR_TABLE_USER_START (MEM_INTERRUPT_VECTOR_TABLE_BIOS_START + 4 * MEM_INTERRUPT_VECTOR_TABLE_BIOS_AMOUNT)
 
+/*  */
+#define MEM_TBL_START (MEM_INTERRUPTS_END + 1)
+#define MEM_TBL_AMOUNT 64
+#define MEM_TBL_END (MEM_TBL_START + 8 * MEM_TBL_AMOUNT)
+
+/* Interrupts itself: */
 #define MEM_INTERRUPTS_START (MEM_INTERRUPT_VECTOR_TABLE_END + 1)
-#define MEM_INTERRUPTS_END (MEM_INTERRUPTS_START + 1024 - 1)
+#define MEM_INTERRUPTS_END (MEM_INTERRUPTS_START + 1024 * 16 - 1)
 
-#define MEM_PROG_START (MEM_INTERRUPTS_END + 1)
+// Virtual kernel mode memory:
 
-// Relative to protected mode memory start:
-#define MEM_RELATIVEPROTMODE_VIDEOPAGE_START 0
-#define MEM_RELATIVEPROTMODE_USER_START (1024 * 2)
+#define MEM_PROG_KERNEL_START (1024 * 256)
+
+// Videopage:
+#define MEM_KERNEL_END (MEM_VIDEOPAGE_START - 1)
+
+#define MEM_VIDEOPAGE_TEXTAMOUNT (80 * 25)
+#define MEM_VIDEOPAGE_START (MEM_USER_START - MEM_VIDEOPAGE_TEXTAMOUNT)
+#define MEM_VIDEOPAGE_END (MEM_USER_START - 1)
+
+// Virtual user memory:
+
+#define MEM_USER_START (1024 * 1024 * 32)
+#define MEM_USER_END MAX_MEM
 
 
 typedef uint64_t uint64;
@@ -46,6 +66,7 @@ typedef int16_t int16;
 
 typedef void (opcode_pointer)( void );
 #define OPCODE( shortOpcodeName ) void ( op_ ## shortOpcodeName )( void )
+#define BIOSOPCODE( shortOpcodeName ) void ( op_bios_ ## shortOpcodeName )( void )
 
 
 typedef enum {
@@ -100,6 +121,7 @@ typedef enum {
 	OPST_ByteConst,	// 8:const.
 	OPST_WordConst,	// 16:const.
 	OPST_MaxConst,	// 26:const.
+	OPST_C1Reg,		// 21:const, 5:[r1].
 } EOpcodeStructureType;
 
 typedef struct _opcode_structtype_bitlength {
@@ -118,7 +140,8 @@ opcode_structtype_length opcode_structtype_lengths[] = {
 	{ 4, { 5, 5, 5, 5 } },
 	{ 1, { 8 } },
 	{ 1, { 16 } },
-	{ 1, { 26 } }
+	{ 1, { 26 } },
+	{ 2, { 21, 5 } },
 };
 
 

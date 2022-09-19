@@ -11,6 +11,7 @@
 
 // Forward opcodes declaration:
 OPCODE( nop );
+OPCODE( int );
 
 OPCODE( mov_const );
 OPCODE( load_byte );
@@ -40,6 +41,10 @@ OPCODE( shr );
 OPCODE( shr_const );
 OPCODE( neg );
 
+OPCODE( jmp_const );
+
+
+
 typedef struct {
 	void ( *address )( void );
 	EOpcodeStructureType structType;
@@ -48,15 +53,16 @@ typedef struct {
 
 opcode_data opcode_matrix[ 64 ] = {
 	{ op_nop,			OPST_None,	"nop" },
+	{ op_int,			OPST_ByteConst, "int" },
 
 	{ op_mov_const,		OPST_1RegC,	"mov" },
-	{ op_load_byte,		OPST_2Reg,	"ldb" },
-	{ op_load_word,		OPST_2Reg,	"ldw" },
-	{ op_load_dword,	OPST_2Reg,	"ldd" },
-	{ op_store_lbyte,	OPST_2Reg,	"svbl" },
-	{ op_store_hbyte,	OPST_2Reg,	"svbh" },
-	{ op_store_word,	OPST_2Reg,	"svw" },
-	{ op_store_dword,	OPST_2Reg,	"svd" },
+	{ op_load_byte,		OPST_1RegC,	"ldb" },
+	{ op_load_word,		OPST_1RegC,	"ldw" },
+	{ op_load_dword,	OPST_1RegC,	"ldd" },
+	{ op_store_lbyte,	OPST_C1Reg,	"svbl" },
+	{ op_store_hbyte,	OPST_C1Reg,	"svbh" },
+	{ op_store_word,	OPST_C1Reg,	"svw" },
+	{ op_store_dword,	OPST_C1Reg,	"svd" },
 
 	{ op_add,			OPST_3RegC,	"add" },
 	{ op_add_const,		OPST_2RegC,	"addv" },
@@ -75,7 +81,9 @@ opcode_data opcode_matrix[ 64 ] = {
 	{ op_shl_const,		OPST_2RegC,	"shlv" },
 	{ op_shr,			OPST_3Reg,	"shr" },
 	{ op_shr_const,		OPST_2RegC,	"shrv" },
-	{ op_neg,			OPST_1Reg,	"neg" }
+	{ op_neg,			OPST_1Reg,	"neg" },
+
+	{ op_jmp_const,		OPST_WordConst, "jmp" }
 };
 
 
