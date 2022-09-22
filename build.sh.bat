@@ -23,7 +23,7 @@ PROGNAME="main"
 OUTPROGNAME="emulRISC.out"
 BUILDSUCCESS=0
 
-gcc $PROGNAME.c -o $OUTPROGNAME -Wall -Wextra && BUILDSUCCESS=1 #&& sleep 0.2 && ./$OUTPROGNAME
+gcc $PROGNAME.c -o $OUTPROGNAME -lncurses -Wall -Wextra && BUILDSUCCESS=1 #&& sleep 0.2 && ./$OUTPROGNAME
 
 if [[ "$1" == "r" || "$1" == "run" ]]; then
 	if [[ $BUILDSUCCESS == 1 ]]; then

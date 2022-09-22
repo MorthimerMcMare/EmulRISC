@@ -159,7 +159,7 @@ interrupt_data interrupts_matrix[ 255 ] = {
 	{ except_irq5, 				INTT_IRQ },
 	{ except_irq6, 				INTT_IRQ },
 	{ except_irq7, 				INTT_IRQ },
-	{ NULL },
+	{ NULL, 0 },
 	{ except_end_emulation,		INTT_Exception | INTT_Unmaskable },
 	{ bios_printstr,			INTT_BIOS }, // 0x10
 	{ bios_printdigit,			INTT_BIOS },

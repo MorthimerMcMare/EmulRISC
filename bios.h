@@ -110,7 +110,7 @@ BIOSOPCODE( printdigit ) {
 
 	*s = '\0';
 	do {
-		*( --s )= *( DIGITS + abs( digit % proc.a2 ) );
+		*( --s )= *( DIGITS + ( digit % proc.a2 ) );
 		digit /= proc.a2;
 		len++;
 	} while ( digit != 0 );
@@ -132,7 +132,7 @@ BIOSOPCODE( getkey ) {
 }
 
 BIOSOPCODE( getstring ) {
-	gets( &mem[ proc.a0 ] );
+	fgets( &mem[ proc.a0 ], MAX_MEM - proc.a0 - 1, stdin );
 }
 
 

@@ -337,14 +337,12 @@ void queueInstruction( opcode_pointer opcode, const uint32 opcargs[ static const
 
 int main( void ) {
 	proc.protectedModeMemStart = MEM_PROG_KERNEL_START;
-
 	proc.flags = IF;
 
 #ifdef LINUX_OS
-    initscr();
-    noecho();
+	initscr();
+	noecho();
 #endif
-
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 100 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 2, 28 } );
 	queueInstruction( op_sub, ( uint32[ 4 ] ){ 1, 1, 2 } );		// 'H'
@@ -374,7 +372,7 @@ int main( void ) {
 	proc.protectedModeMemStart += ( 1024 - proc.protectedModeMemStart ) % 1024;
 	proc.instructionptr = MEM_PROG_KERNEL_START;
 
-	const int MAX_EXIT_DOWNCOUNTER = 4;
+	const int MAX_EXIT_DOWNCOUNTER = 8;
 	int exit_countdown = MAX_EXIT_DOWNCOUNTER;
 	unsigned char last_opcode_id_exitcheck = 0;
 
@@ -437,7 +435,7 @@ int main( void ) {
 	} // of while ( !( proc.flags & EndEmulF ) ) {}
 
 #ifdef LINUX_OS
-    endwin();
+	endwin();
 #endif
 
 	return 0;
