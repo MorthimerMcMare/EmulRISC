@@ -17,7 +17,8 @@ EXCEPTIONOPCODE( zero_division ) {
 }
 
 EXCEPTIONOPCODE( trace ) {
-	getch();
+	if ( 'q' == getch() )
+		proc.flags &= ~TF;
 }
 
 EXCEPTIONOPCODE( breakpoint ) {

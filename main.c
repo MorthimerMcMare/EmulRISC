@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <limits.h>
 
+//#define USE_NCURSES
+
 #include "defines.h"	// Constants, defines, ...
 #include "internal.h"	// Core and memory data.
 #include "opmatrix.h"	// Opcodes matrix.
@@ -376,6 +378,8 @@ int main( void ) {
 	int exit_countdown = MAX_EXIT_DOWNCOUNTER;
 	unsigned char last_opcode_id_exitcheck = 0;
 
+	uint32 traceExceptionIndex = FINDINT( except_trace );
+
 	while ( !( proc.flags & EndEmulF ) ) {
 		// Parsing:
 		uint32 startptr = proc.instructionptr;
@@ -415,7 +419,7 @@ int main( void ) {
 		//printFlags();
 
 		if ( ( proc.flags & ( TF | EndEmulF ) ) == TF ) {
-			curopc.args[ 0 ] = FINDINT( except_trace );
+			curopc.args[ 0 ] = traceExceptionIndex;
 			opcodeCall( op_int );
 		}
 
@@ -435,6 +439,7 @@ int main( void ) {
 	} // of while ( !( proc.flags & EndEmulF ) ) {}
 
 #ifdef LINUX_OS
+	getch();
 	endwin();
 #endif
 

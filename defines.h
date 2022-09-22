@@ -73,13 +73,15 @@ typedef void (opcode_pointer)( void );
 
 #if defined(__WIN32) || defined(__MSDOS__)
 # include <conio.h>
-#else
+#elif defined( USE_NCURSES )
 # include <ncurses.h>
 # define clrscr() clear()
 # define printf printw
 # define puts(string); printw( "%s\n", (string) );
 # define putchar(pchar) printw( "%c", (char) (pchar) )
 # define LINUX_OS
+#else
+# define getch getchar
 #endif
 
 #ifndef LINUX_OS
