@@ -43,6 +43,8 @@ OPCODE( neg );
 
 OPCODE( jmp_const );
 
+OPCODE( setflag );
+OPCODE( clearflag );
 
 
 typedef struct {
@@ -51,7 +53,7 @@ typedef struct {
 	char name[ 7 ];
 } opcode_data;
 
-opcode_data opcode_matrix[ 64 ] = {
+opcode_data opcodes_matrix[ 64 ] = {
 	{ op_nop,			OPST_None,	"nop" },
 	{ op_int,			OPST_ByteConst, "int" },
 
@@ -83,27 +85,104 @@ opcode_data opcode_matrix[ 64 ] = {
 	{ op_shr_const,		OPST_2RegC,	"shrv" },
 	{ op_neg,			OPST_1Reg,	"neg" },
 
-	{ op_jmp_const,		OPST_WordConst, "jmp" }
+	{ op_jmp_const,		OPST_WordConst, "jmp" },
+
+	{ op_setflag,		OPST_ByteConst, "stf" },
+	{ op_clearflag,		OPST_ByteConst, "clf" },
 };
 
 
-
-const int16_t matrixsize = sizeof( opcode_matrix ) / sizeof( opcode_matrix[ 0 ] );
+const int16_t opcodes_matrix_size = sizeof( opcodes_matrix ) / sizeof( opcodes_matrix[ 0 ] );
 
 opcode_data *getOpcodeData( unsigned char index ) {
 	opcode_data *outptr = NULL;
 
-	if ( index < matrixsize )
-		outptr = &opcode_matrix[ (unsigned int) index ];
+	if ( index < opcodes_matrix_size )
+		outptr = &opcodes_matrix[ (unsigned int) index ];
 
 	return outptr;
 }
 
 int16_t findOpcodeMatrixIndex( opcode_pointer opcode ) {
-	//static int16_t matrixsize = sizeof( opcode_matrix ) / sizeof( opcode_matrix[ 0 ] );
+	for ( int16_t i = 0; i < opcodes_matrix_size; i++ ) {
+		if ( opcodes_matrix[ i ].address == opcode )
+			return i;
+	}
 
-	for ( int16_t i = 0; i < matrixsize; i++ ) {
-		if ( opcode_matrix[ i ].address == opcode )
+	return -1;
+}
+
+
+
+// Heavily modified exceptions list from https://www.cs.cmu.edu/~ralf/files.html, "OVERVIEW.LST".
+
+EXCEPTIONOPCODE( zero_division );
+EXCEPTIONOPCODE( trace );
+EXCEPTIONOPCODE( breakpoint );
+EXCEPTIONOPCODE( invalid_opcode );
+EXCEPTIONOPCODE( invalid_interrupt );
+EXCEPTIONOPCODE( printscreen );
+EXCEPTIONOPCODE( irq0 );
+EXCEPTIONOPCODE( irq1 );
+EXCEPTIONOPCODE( irq2 );
+EXCEPTIONOPCODE( irq3 );
+EXCEPTIONOPCODE( irq4 );
+EXCEPTIONOPCODE( irq5 );
+EXCEPTIONOPCODE( irq6 );
+EXCEPTIONOPCODE( irq7 );
+EXCEPTIONOPCODE( end_emulation );
+
+BIOSOPCODE( printstr );
+BIOSOPCODE( printdigit );
+BIOSOPCODE( printnewline );
+BIOSOPCODE( videomemory );
+BIOSOPCODE( getkey );
+BIOSOPCODE( getstring );
+
+typedef struct {
+	void ( *defaddress )( void );
+	EInterruptType type;
+} interrupt_data;
+
+interrupt_data interrupts_matrix[ 255 ] = {
+	{ except_zero_division,		INTT_Exception | INTT_Unmaskable },
+	{ except_trace,				INTT_Exception | INTT_Unmaskable },
+	{ except_breakpoint,		INTT_Exception | INTT_Unmaskable },
+	{ except_invalid_opcode,	INTT_Exception | INTT_Unmaskable },
+	{ except_invalid_interrupt,	INTT_Exception | INTT_Unmaskable },
+	{ except_printscreen,		INTT_Exception },
+	{ except_irq0,				INTT_IRQ | INTT_Unmaskable }, // System timer.
+	{ except_irq1, 				INTT_IRQ },
+	{ except_irq2, 				INTT_IRQ }, // 0x08
+	{ except_irq3, 				INTT_IRQ },
+	{ except_irq4, 				INTT_IRQ },
+	{ except_irq5, 				INTT_IRQ },
+	{ except_irq6, 				INTT_IRQ },
+	{ except_irq7, 				INTT_IRQ },
+	{ NULL },
+	{ except_end_emulation,		INTT_Exception | INTT_Unmaskable },
+	{ bios_printstr,			INTT_BIOS }, // 0x10
+	{ bios_printdigit,			INTT_BIOS },
+	{ bios_printnewline,		INTT_BIOS },
+	{ bios_videomemory,			INTT_BIOS },
+	{ bios_getkey,				INTT_BIOS },
+	{ bios_getstring,			INTT_BIOS },
+};
+
+const int16_t interrupts_matrix_size = sizeof( interrupts_matrix ) / sizeof( interrupts_matrix[ 0 ] );
+
+interrupt_data *getInterruptData( unsigned char index ) {
+	interrupt_data *outptr = NULL;
+
+	if ( index < interrupts_matrix_size )
+		outptr = &interrupts_matrix[ (unsigned int) index ];
+
+	return outptr;
+}
+
+int16_t findInterruptMatrixIndex( opcode_pointer defaultaddress ) {
+	for ( int16_t i = 0; i < interrupts_matrix_size; i++ ) {
+		if ( interrupts_matrix[ i ].defaddress == defaultaddress )
 			return i;
 	}
 

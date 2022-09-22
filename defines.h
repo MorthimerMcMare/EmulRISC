@@ -66,7 +66,30 @@ typedef int16_t int16;
 
 typedef void (opcode_pointer)( void );
 #define OPCODE( shortOpcodeName ) void ( op_ ## shortOpcodeName )( void )
-#define BIOSOPCODE( shortOpcodeName ) void ( op_bios_ ## shortOpcodeName )( void )
+#define BIOSOPCODE( shortOpcodeName ) void ( bios_ ## shortOpcodeName )( void )
+#define EXCEPTIONOPCODE( shortOpcodeName ) void ( except_ ## shortOpcodeName )( void )
+
+#define FINDINT( interruptName ) findInterruptMatrixIndex( interruptName )
+
+#if defined(__WIN32) || defined(__MSDOS__)
+# include <conio.h>
+#else
+# include <ncurses.h>
+# define clrscr() clear()
+# define printf printw
+# define puts(string); printw( "%s\n", (string) );
+# define putchar(pchar) printw( "%c", (char) (pchar) )
+# define LINUX_OS
+#endif
+
+#ifndef LINUX_OS
+//# define STRGKEY_BACKSPACE 8
+# ifdef __WIN32
+   void clrscr( void ) { system( "cls" ); }
+# endif
+//#else
+//# define STRGKEY_BACKSPACE 127
+#endif
 
 
 typedef enum {
@@ -83,9 +106,9 @@ typedef enum {
 	FPF		= 0x0400,	// Precision lose flag [FloatCPU only].
 
 	RlModeF	= 0x4000,	// Real (root/system) processor mode flag.
-	EmulEndF= 0x8000,	// Exit flag. Maybe will be removed in future.
+	EndEmulF= 0x8000,	// Exit flag. Maybe will be removed in future.
 
-	FLAGS_Storable = ZF | SF | CF | OF | FDDF | FNF | FPF // They will be handled via "pushf"/"popf".
+	FLAGS_Storable = ZF | SF | CF | OF | IF | TF | FDDF | FNF | FPF // They will be handled via "pushf"/"popf".
 } EFlags;
 
 #define IF_REAL_MODE if ( proc.flags & RlModeF )
@@ -124,24 +147,43 @@ typedef enum {
 	OPST_C1Reg,		// 21:const, 5:[r1].
 } EOpcodeStructureType;
 
+typedef enum {
+	OPSPT_Undefined = 0,
+	OPSPT_Reg,
+	OPSPT_Const,
+
+	OPSPT_Register = OPSPT_Reg,
+	OPSPT_Constant = OPSPT_Const
+} EOpcodeStructPartType;
+
+typedef enum {
+	INTT_Exception = 0,
+	INTT_BIOS,
+	INTT_IRQ,
+	INTT_User,
+
+	INTT_Unmaskable		= 0x1000
+} EInterruptType;
+
 typedef struct _opcode_structtype_bitlength {
 	int argsAmount;
 	char lengths[ 4 ]; // From 6th bit.
+	EOpcodeStructPartType types[ 4 ];
 } opcode_structtype_length;
 
 opcode_structtype_length opcode_structtype_lengths[] = {
 	{ 0 },
-	{ 1, { 5 } },
-	{ 2, { 5, 21 } },
-	{ 2, { 5, 5 } },
-	{ 3, { 5, 5, 16 } },
-	{ 3, { 5, 5, 5 } },
-	{ 4, { 5, 5, 5, 11 } },
-	{ 4, { 5, 5, 5, 5 } },
-	{ 1, { 8 } },
-	{ 1, { 16 } },
-	{ 1, { 26 } },
-	{ 2, { 21, 5 } },
+	{ 1, { 5 }, 			{ OPSPT_Reg } },
+	{ 2, { 5, 21 }, 		{ OPSPT_Reg, OPSPT_Const } },
+	{ 2, { 5, 5 }, 			{ OPSPT_Reg, OPSPT_Reg } },
+	{ 3, { 5, 5, 16 }, 		{ OPSPT_Reg, OPSPT_Reg, OPSPT_Const } },
+	{ 3, { 5, 5, 5 }, 		{ OPSPT_Reg, OPSPT_Reg, OPSPT_Reg } },
+	{ 4, { 5, 5, 5, 11 }, 	{ OPSPT_Reg, OPSPT_Reg, OPSPT_Reg, OPSPT_Const } },
+	{ 4, { 5, 5, 5, 5 }, 	{ OPSPT_Reg, OPSPT_Reg, OPSPT_Reg, OPSPT_Reg } },
+	{ 1, { 8 }, 			{ OPSPT_Const } },
+	{ 1, { 16 },  			{ OPSPT_Const } },
+	{ 1, { 26 }, 			{ OPSPT_Const } },
+	{ 2, { 21, 5 },			{ OPSPT_Const, OPSPT_Reg } },
 };
 
 
