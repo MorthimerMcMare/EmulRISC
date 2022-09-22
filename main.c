@@ -356,7 +356,7 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, '!' } );	// '!'
 	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60002, 1 } );
 
-	queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
+	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
 
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0x60000 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
@@ -401,7 +401,7 @@ int main( void ) {
 		}
 
 		// Debug tracing (seems to be temporal):
-		/*printf( " [Trace 0x%04X: \"%8s ", proc.instructionptr, opcodes_matrix[ (int) curopc.id ].name );
+		printf( " [Trace 0x%04X: \"%8s ", proc.instructionptr, opcodes_matrix[ (int) curopc.id ].name );
 
 		for ( int i = 0; i < argLengths.argsAmount - 1; i++ )
 			printf( "%5Xh, ", curopc.args[ i ] );
@@ -409,14 +409,14 @@ int main( void ) {
 		if ( argLengths.argsAmount > 0 )
 			printf( "%5Xh", curopc.args[ argLengths.argsAmount - 1 ] );
 
-		puts( "\"]" );*/
+		puts( "\"]" );
 
 		opcodeCall( opcode->address );
 
 		//printf( " [\\Post regs: ra 0x%X; a0..a2 {0x%X, 0x%X, 0x%X}; t0..t2 {0x%X, 0x%X, 0x%X}]", proc.ra, proc.a0, proc.a1, proc.a2, proc.t0, proc.t1, proc.t2 );
-		printFlags();
+		//printFlags();
 
-		if ( proc.flags & TF ) {
+		if ( ( proc.flags & ( TF | EndEmulF ) ) == TF ) {
 			curopc.args[ 0 ] = FINDINT( except_trace );
 			opcodeCall( op_int );
 		}
