@@ -26,7 +26,7 @@ OPCODE( mov_const ) {
 	REGARG( 0 ) = curopc.args[ 1 ];
 }
 OPCODE( load_byte ) {
-	REGARG( 0 ) = mem[ curopc.args[ 1 ] ] + curopc.args[ 2 ];
+	REGARG( 0 ) = (unsigned char) ( mem[ curopc.args[ 1 ] ] + curopc.args[ 2 ] );
 }
 OPCODE( load_word ) {
 	REGARG( 0 ) = ( * (uint16 *) &mem[ curopc.args[ 1 ] ] ) + curopc.args[ 2 ];
@@ -38,7 +38,7 @@ OPCODE( load_dword ) {
 
 OPCODE( store_lbyte ) {
 	mem[ curopc.args[ 0 ] ] = REGARG( 1 ) & 0xFF;
-	//printf( "mem[ 0x%X ] = 0x%02X (really saved 0x%02X '%c')\n", curopc.args[ 0 ], ( REGARG( 1 ) + curopc.args[ 2 ] ) & 0xFF, (char) mem[ curopc.args[ 0 ] ], (char) mem[ curopc.args[ 0 ] ] );
+	//printf( "mem[ 0x%X ] = 0x%02X (really saved 0x%02X '%c')\n", curopc.args[ 0 ], REGARG( 1 ), (char) mem[ curopc.args[ 0 ] ], (char) mem[ curopc.args[ 0 ] ] );
 }
 OPCODE( store_hbyte ) {
 	mem[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] >> 8 ) & 0xFF;
@@ -48,6 +48,11 @@ OPCODE( store_word ) {
 }
 OPCODE( store_dword ) {
 	* (uint32 *) &mem[ curopc.args[ 0 ] ] = proc.regs[ curopc.args[ 1 ] ];
+
+	/*printf( "mem[ 0x%X ] = 0x%02X (really saved 0x%02X '%c')\n", curopc.args[ 0 ], REGARG( 1 ), * (uint32 *) &mem[ curopc.args[ 0 ] ], (unsigned char) mem[ curopc.args[ 0 ] ] );
+	for ( uint32 i = curopc.args[ 0 ]; i < curopc.args[ 0 ] + 4; i++ )
+		printf( "0x%02X ", (unsigned char) mem[ i ] );
+	puts( "" );*/
 }
 
 
@@ -173,43 +178,65 @@ OPCODE( neg ) {
 OPCODE( nop ) {}
 
 
+
 /* Jumps: */
 
 OPCODE( call_const ) {	// "JAL r_saveto, const_offset".
 	REGARG( 0 ) = proc.instructionptr + RISC_INSTRUCTION_LENGTH;
-	proc.instructionptr += curopc.args[ 1 ];
+	proc.instructionptr = curopc.args[ 1 ];
 }
 OPCODE( call_reg ) {	// "JALR r_saveto, r_offset, const_offset".
 	REGARG( 0 ) = proc.instructionptr + RISC_INSTRUCTION_LENGTH;
-	proc.instructionptr += REGARG( 1 ) + curopc.args[ 2 ];
+	proc.instructionptr = REGARG( 1 ) + curopc.args[ 2 ];
 }
 
 OPCODE( int ) {
-	int interruptNumber = curopc.args[ 0 ];
+	proc.sf = proc.flags;
+	proc.flags &= ~TF;
 
+	int interruptNumber = curopc.args[ 0 ];
 	interrupt_data *intdata = getInterruptData( interruptNumber );
 
-	if ( !( intdata->type & INTT_Unmaskable ) && !( proc.flags & IF ) )
-		return;
+	if ( !intdata )
+		interruptNumber = -1;
 
-	uint32 interruptCodePtr = MEM_INTERRUPT_VECTOR_TABLE_START + interruptNumber * sizeof( uint32 );
+	if ( interruptNumber >= 0 ) {
+		if ( ( !( intdata->type & INTT_Unmaskable ) && !( proc.flags & IF ) ) )
+			return;
 
-	// Interrupts are overridden only if address value in the IVT is not equals to zero:
-	if ( mem[ interruptCodePtr ] == 0 && intdata->defaddress ) {
-		intdata->defaddress();
+		uint32 interruptCodePtr = * (uint32 *) &mem[ MEM_INTERRUPT_VECTOR_TABLE_START + interruptNumber * sizeof( uint32 ) ];
 
-	} else if ( mem[ interruptCodePtr ] != 0 ) {
-		// Save last instruction position:
-		proc.ra = proc.instructionptr;
-		proc.instructionptr = mem[ interruptCodePtr ];
+		//printf( "op_int(). intCodeptr == mem[ 0x%04X ] == 0x%X.\n", interruptCodePtr, * (uint32 *) &mem[ interruptCodePtr ] );
 
-	} else {
+		// Interrupts are overridden only if address value in the IVT is not equals to zero:
+		if ( interruptCodePtr == 0 && intdata->defaddress ) {
+			intdata->defaddress();
+
+		} else if ( interruptCodePtr != 0 ) {
+			// Save last instruction position:
+			proc.ra = proc.instructionptr;
+			proc.instructionptr = interruptCodePtr;
+
+			//printf( "op_int(). Interrupt address 0x%04X, return address 0x%04X.\n", proc.instructionptr, proc.ra );
+
+		} else {
+			interruptNumber = -1;
+		}
+	} // of if ( interruptNumber > 0 ) {}
+
+	if ( interruptNumber < 0 ) {
 		proc.ra = proc.instructionptr;
 		curopc.args[ 0 ] = findInterruptMatrixIndex( except_invalid_interrupt );
-
 		opcodeCall( op_int );
 	}
+
+} // of OPCODE( int ) {}
+
+OPCODE( int_ret ) {
+	proc.flags = ( proc.sf & ( ~TF ) ) | PreTF;
+	proc.instructionptr = proc.ra;
 }
+
 
 OPCODE( jmp_const ) {
 	proc.instructionptr += RISC_INSTRUCTION_LENGTH * (int32) curopc.args[ 0 ];
@@ -341,13 +368,45 @@ int main( void ) {
 	proc.protectedModeMemStart = MEM_PROG_KERNEL_START;
 	proc.flags = IF;
 
-#ifdef LINUX_OS
+#ifdef LINUX_NCURSES
 	initscr();
 	noecho();
 #endif
+
+	// Tracer initialization and code:
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, MEM_INTERRUPTS_START } );
+	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_START + findInterruptMatrixIndex( except_trace ) * 4, 10 } );
+
+	uint32 savedInstructionPos = proc.protectedModeMemStart;
+	proc.protectedModeMemStart = MEM_INTERRUPTS_START + findInterruptMatrixIndex( except_trace ) * 4;
+
+	// 256 bytes: 48 opcodes, 16 variables.
+	uint32 interruptMemory = proc.protectedModeMemStart + 48 * 4;
+	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
+	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory, 10 } );
+	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 4, 11 } );
+	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 8, 2 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0x123456 } );
+
+	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 10, interruptMemory } );
+	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 11, interruptMemory + 4 } );
+	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 2, interruptMemory + 8 } );
+	queueInstruction( op_int_ret, ( uint32[ 4 ] ){ 0 } );
+	//queueInstruction( op_call_reg, ( uint32[ 4 ] ){ 0, 1, 0 } );
+
+
+	proc.protectedModeMemStart = savedInstructionPos;
+
+	// Test program:
+	queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 100 } );
+	queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 2, 28 } );
-	queueInstruction( op_sub, ( uint32[ 4 ] ){ 1, 1, 2 } );		// 'H'
+
+	//queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 16, 10 } );
+	//queueInstruction( op_load_byte, ( uint32[ 4 ] ){ 10, interruptMemory + 17 } );
+
+	/*queueInstruction( op_sub, ( uint32[ 4 ] ){ 1, 1, 2 } );		// 'H'
 	queueInstruction( op_add_const, ( uint32[ 4 ] ){ 2, 2, 77 } );	// 'i'
 
 	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60001, 2 } );
@@ -366,7 +425,7 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 0, 0xABCD } );	// Must be skipped.
 
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_printstr ) } ); // Prints a string (via quasiBIOS).
-	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_printnewline ) } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_printnewline ) } );*/
 
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( except_end_emulation ) } ); // Ends emulation (via quasiBIOS).
 
@@ -374,9 +433,9 @@ int main( void ) {
 	proc.protectedModeMemStart += ( 1024 - proc.protectedModeMemStart ) % 1024;
 	proc.instructionptr = MEM_PROG_KERNEL_START;
 
-	const int MAX_EXIT_DOWNCOUNTER = 8;
+	const int MAX_EXIT_DOWNCOUNTER = 40;
 	int exit_countdown = MAX_EXIT_DOWNCOUNTER;
-	unsigned char last_opcode_id_exitcheck = 0;
+	//uint32 last_opcode_id_exitcheck = 0;
 
 	uint32 traceExceptionIndex = FINDINT( except_trace );
 
@@ -403,7 +462,7 @@ int main( void ) {
 		}
 
 		// Debug tracing (seems to be temporal):
-		printf( " [Trace 0x%04X: \"%8s ", proc.instructionptr, opcodes_matrix[ (int) curopc.id ].name );
+		printf( " [Trace 0x%04X: \"%5s ", proc.instructionptr, opcodes_matrix[ (int) curopc.id ].name );
 
 		for ( int i = 0; i < argLengths.argsAmount - 1; i++ )
 			printf( "%5Xh, ", curopc.args[ i ] );
@@ -421,24 +480,21 @@ int main( void ) {
 		if ( ( proc.flags & ( TF | EndEmulF ) ) == TF ) {
 			curopc.args[ 0 ] = traceExceptionIndex;
 			opcodeCall( op_int );
+		} else if ( proc.flags & PreTF ) {
+			proc.flags = ( proc.flags | TF ) & ~PreTF;
 		}
 
 		proc.instructionptr += RISC_INSTRUCTION_LENGTH;
 		proc.zero = 0;
 
 		// Emergency exit check:
-		if ( curopc.id == last_opcode_id_exitcheck ) {
-			if ( --exit_countdown <= 0 ) {
-				puts( "Exit downcounter reaches zero." );
-				proc.flags |= EndEmulF;
-			}
-		} else {
-			exit_countdown = MAX_EXIT_DOWNCOUNTER;
+		if ( --exit_countdown <= 0 ) {
+			printf( "main(). Exit downcounter (%i) reaches zero.\n", MAX_EXIT_DOWNCOUNTER );
+			proc.flags |= EndEmulF;
 		}
-
 	} // of while ( !( proc.flags & EndEmulF ) ) {}
 
-#ifdef LINUX_OS
+#ifdef LINUX_NCURSES
 	getch();
 	endwin();
 #endif

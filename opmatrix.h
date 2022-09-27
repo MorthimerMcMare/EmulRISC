@@ -11,7 +11,6 @@
 
 // Forward opcodes declaration:
 OPCODE( nop );
-OPCODE( int );
 
 OPCODE( mov_const );
 OPCODE( load_byte );
@@ -41,10 +40,30 @@ OPCODE( shr );
 OPCODE( shr_const );
 OPCODE( neg );
 
+OPCODE( call_const );
+OPCODE( call_reg );
+
 OPCODE( jmp_const );
+OPCODE( jz_const );
+OPCODE( jnz_const );
+OPCODE( js_const );
+OPCODE( jns_const );
+OPCODE( jo_const );
+OPCODE( jno_const );
+OPCODE( jc_const );
+OPCODE( jnc_const );
+
+OPCODE( beq );
+OPCODE( bne );
+OPCODE( blt );
+OPCODE( bge );
+OPCODE( bltu );
+OPCODE( bgeu );
 
 OPCODE( setflag );
 OPCODE( clearflag );
+OPCODE( int );
+OPCODE( int_ret );
 
 
 typedef struct {
@@ -55,7 +74,6 @@ typedef struct {
 
 opcode_data opcodes_matrix[ 64 ] = {
 	{ op_nop,			OPST_None,	"nop" },
-	{ op_int,			OPST_ByteConst, "int" },
 
 	{ op_mov_const,		OPST_1RegC,	"mov" },
 	{ op_load_byte,		OPST_1RegC,	"ldb" },
@@ -85,10 +103,31 @@ opcode_data opcodes_matrix[ 64 ] = {
 	{ op_shr_const,		OPST_2RegC,	"shrv" },
 	{ op_neg,			OPST_1Reg,	"neg" },
 
+	{ op_call_const,	OPST_1RegC, "callv" },
+	{ op_call_reg,		OPST_2RegC, "call" },
+
 	{ op_jmp_const,		OPST_WordConst, "jmp" },
+	{ op_jz_const,		OPST_MaxConst, "jz" },
+	{ op_jnz_const,		OPST_MaxConst, "jnz" },
+	{ op_js_const,		OPST_WordConst, "js" },
+	{ op_jns_const,		OPST_WordConst, "jns" },
+	{ op_jo_const,		OPST_WordConst, "jo" },
+	{ op_jno_const,		OPST_WordConst, "jno" },
+	{ op_jc_const,		OPST_WordConst, "jc" },
+	{ op_jnc_const,		OPST_WordConst, "jnc" },
+
+	{ op_beq,			OPST_2RegC, "beq" },
+	{ op_bne,			OPST_2RegC, "bne" },
+	{ op_blt,			OPST_2RegC, "blt" },
+	{ op_bge,			OPST_2RegC, "bge" },
+	{ op_bltu,			OPST_2RegC, "bltu" },
+	{ op_bgeu,			OPST_2RegC, "bgeu" },
 
 	{ op_setflag,		OPST_ByteConst, "stf" },
 	{ op_clearflag,		OPST_ByteConst, "clf" },
+
+	{ op_int,			OPST_ByteConst, "int" },
+	{ op_int_ret,		OPST_None, "iret" },
 };
 
 

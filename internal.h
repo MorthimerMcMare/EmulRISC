@@ -10,12 +10,12 @@
 char mem[ MAX_MEM ] = { 0 };
 
 
-/* Registers (descriptions
+/* Registers (modified descriptions
 		from https://www.cs.cornell.edu/courses/cs3410/2019sp/riscv/interpreter; and
 		from https://en.wikichip.org/wiki/risc-v/registers):
 	r0:		zero,	Always zero;
 	r1:		ra,		Return Address;
-	r2:		sp,		Stack Pointer;
+	r2:		sf,		Saved flags;
 	r3:		gp,		Global Pointer;
 	r4:		tp,		Thread Pointer [unused in this emulator];
 	r5-7:	t0-2,	Temporal registers (block 1);
@@ -32,7 +32,7 @@ struct _processor {
 		struct {
 			uint32 zero;
 			uint32 ra;
-			uint32 sp;
+			uint32 sf;
 			uint32 gp;
 			uint32 tp;
 			uint32 t0; uint32 t1; uint32 t2;

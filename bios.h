@@ -126,7 +126,27 @@ BIOSOPCODE( printnewline ) {
 	putchar( '\n' );
 }
 
-BIOSOPCODE( videomemory ) {}
+BIOSOPCODE( videomemory ) {
+	uint32 action = proc.a0;
+	uint32 arg1 = proc.a1;
+	uint32 *screenvar = (uint32 *) &mem[ MEM_KERNELVARS_BIOS_SCREEN ];
+
+	switch ( action ) {
+		case 0: // Clear screen.
+			memset( &mem[ MEM_VIDEOPAGE_START ], '\x0', MEM_VIDEOPAGE_TEXTAMOUNT );
+			break;
+		case 1: // Set cursor X.
+			if ( arg1 < 80 )
+				*screenvar = ( *screenvar & ~0xFF ) | arg1;
+			break;
+		case 2: // Set cursor Y.
+			if ( arg1 < 25 )
+				*screenvar = ( *screenvar & ~0xFF00 ) | ( arg1 << 8 );
+			break;
+		default:
+			break;
+	}
+}
 
 BIOSOPCODE( getkey ) {
 	proc.a0 = getch();

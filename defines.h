@@ -15,9 +15,12 @@
 // Main statical:
 
 #define MEM_KERNEL_START 0
+#define MEM_KERNELVARS_START (MEM_KERNEL_START)
+#define MEM_KERNELVARS_BIOS_SCREEN (MEM_KERNEL_START) /* 4 bytes: {0x50, 0x19, cursor_x, cursor_y}. */
+#define MEM_KERNELVARS_END 1023
 
 /* 256 interrupt addresses in table at all. */
-#define MEM_INTERRUPT_VECTOR_TABLE_START 1024
+#define MEM_INTERRUPT_VECTOR_TABLE_START (MEM_KERNELVARS_END + 1)
 #define MEM_INTERRUPT_VECTOR_TABLE_END (MEM_INTERRUPT_VECTOR_TABLE_START + 4 * 256 - 1)
 /* 16 exceptions interrupt addresses: */
 #define MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_FIRST 0
@@ -79,12 +82,12 @@ typedef void (opcode_pointer)( void );
 # define printf printw
 # define puts(string); printw( "%s\n", (string) );
 # define putchar(pchar) printw( "%c", (char) (pchar) )
-# define LINUX_OS
+# define LINUX_NCURSES
 #else
 # define getch getchar
 #endif
 
-#ifndef LINUX_OS
+#ifndef LINUX_NCURSES
 //# define STRGKEY_BACKSPACE 8
 # ifdef __WIN32
    void clrscr( void ) { system( "cls" ); }
@@ -107,6 +110,7 @@ typedef enum {
 	FNF		= 0x0200,	// Infinity value flag [FloatCPU only].
 	FPF		= 0x0400,	// Precision lose flag [FloatCPU only].
 
+	PreTF	= 0x2000,	// TF must be set on the next tic ("iret").
 	RlModeF	= 0x4000,	// Real (root/system) processor mode flag.
 	EndEmulF= 0x8000,	// Exit flag. Maybe will be removed in future.
 
