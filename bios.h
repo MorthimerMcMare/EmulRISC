@@ -81,7 +81,7 @@ uint32 internalPrintString( char *outstring ) {
 			break;
 		case BIOS_OUTPUT_VIDEOPAGE:
 		case BIOS_OUTPUT_VIDEOPAGE_FREEZED:
-			cursorpos = ( mem[ MEM_KERNELVARS_BIOS_SCREEN ] & 0xFFFF );
+			cursorpos = ( *screenvar & 0xFFFF );
 
 			char *curoutpos = &mem[ MEM_VIDEOPAGE_START + cursorpos ];
 			char *curchar = outstring;
@@ -89,7 +89,7 @@ uint32 internalPrintString( char *outstring ) {
 			for ( outAmount = 0; *curchar != '\x0' && outAmount < MEM_VIDEOPAGE_TEXTAMOUNT - cursorpos; curchar++, curoutpos++, outAmount++ )
 				*curoutpos = *curchar;
 
-			mem[ MEM_KERNELVARS_BIOS_SCREEN ] += outAmount; // Absolute position is a last two bytes.
+			mem[ MEM_KERNELVARS_BIOS_SCREEN ] += outAmount; // Absolute position in a last two bytes in this uint32 variable.
 
 			//strncpy( (char *) &mem[ MEM_VIDEOPAGE_START + cursorpos ], outstring, MIN( MEM_VIDEOPAGE_TEXTAMOUNT - cursorpos, strlen( outstring ) ) );
 
@@ -238,7 +238,7 @@ BIOSOPCODE( videomemory ) {
 			break;
 		case 4: // Set cursor absolute X/Y.
 			if ( arg1 < MEM_VIDEOPAGE_TEXTAMOUNT )
-				*screenvar = ( *screenvar & ~0xFFFF ) | arg1;
+				*screenvar = ( *screenvar & ~0xFFFF ) + arg1;
 			break;
 		case 5: // Add cursor X.
 			if ( arg1 + (*screenvar) > MEM_VIDEOPAGE_TEXTAMOUNT - 1 )

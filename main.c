@@ -383,7 +383,6 @@ int main( void ) {
 
 	// 256 bytes: 48 opcodes, 16 variables.
 	uint32 interruptMemory = proc.protectedModeMemStart + 48 * 4;
-	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory, 10 } );
 	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 4, 11 } );
 	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 8, 2 } );
@@ -419,6 +418,9 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Videomemory output.
 
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 999 } );				// (0x1FFF8A8 vs 0x1FFF830).
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Moves cursor (subfunc 4h).
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0x60000 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
 
@@ -426,8 +428,7 @@ int main( void ) {
 	queueInstruction( op_nop, ( uint32[ 4 ] ){ 0 } );				// Will be skipped;
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 0xABCD } );	// Will be skipped.
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
-	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (via quasiBIOS).
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (subfunc 0h).
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // A newline character (subfunc 2h)
 
@@ -437,7 +438,6 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 'Q' } );
 	queueInstruction( op_beq, ( uint32[ 4 ] ){ 10, 11, 1 } );
 	queueInstruction( op_jmp_const, ( uint32[ 4 ] ){ -5 } );*/
-
 
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( except_end_emulation ) } ); // Ends emulation (via quasiBIOS).
 
@@ -500,17 +500,17 @@ int main( void ) {
 		if ( ( proc.flags & VUF ) && BIOS_OUTPUT_VIDEOPAGE == ( ( *screenvar & 0xFF0000 ) >> 16 ) ) {
 			clrscr();
 
-			char outline[ 81 ] = { 0 };
+			char outline[ 82 ] = { 0 };
 
 			for ( int i = 0; i < 25; i++ ) {
 				memcpy( outline, &mem[ MEM_VIDEOPAGE_START + i * 80 ], 80 );
-				puts( outline );
+				fwrite( outline, 80, sizeof( char ), stdout );
+				puts( "|" );
 			}
 
 			// Lower screen border:
-			memset( outline, '-', 79 );
-			outline[ 0 ] = '\\';
-			outline[ 79 ] = '/';
+			memset( outline, '-', 80 );
+			outline[ 80 ] = '/';
 			puts( outline );
 
 			proc.flags &= ~VUF;
