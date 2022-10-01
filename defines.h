@@ -16,7 +16,7 @@
 
 #define MEM_KERNEL_START 0
 #define MEM_KERNELVARS_START (MEM_KERNEL_START)
-#define MEM_KERNELVARS_BIOS_SCREEN (MEM_KERNEL_START) /* 4 bytes: {0x50, 0x19, cursor_x, cursor_y}. */
+#define MEM_KERNELVARS_BIOS_SCREEN (MEM_KERNEL_START) /* 4 bytes: {0x00, output_mode, {cursor_y * 80 + cursor_x}}. */
 #define MEM_KERNELVARS_END 1023
 
 /* 256 interrupt addresses in table at all. */
@@ -105,6 +105,7 @@ typedef enum {
 
 	IF		= 0x0010,	// Interrupts enabled flag.
 	TF		= 0x0020,	// Trace enabled flag.
+	VUF		= 0x0040,	// Videopage updated flag.
 
 	FDDF	= 0x0100,	// Double-data flag [FloatCPU only].
 	FNF		= 0x0200,	// Infinity value flag [FloatCPU only].
@@ -129,6 +130,10 @@ typedef struct {
 	uint32 args[ 4 ];
 } opcode_mem_struct;
 
+
+#define MIN( X, Y ) ( (X) < (Y)? (X) : (Y) )
+#define MAX( X, Y ) ( (X) > (Y)? (X) : (Y) )
+
 #define REGARG( index ) proc.regs[ curopc.args[ index ] ]
 
 #define checkZeroFlag( value )\
@@ -136,6 +141,15 @@ if ( value == 0 )\
 	proc.flags |= ZF;\
 else\
 	proc.flags &= ~ZF;
+
+#define INVALID_INTERRUPT_ARG( intname, arg7 )\
+	proc.ra = proc.instructionptr;\
+	if ( (intname) != NULL ) proc.a6 = FINDINT( intname );\
+	if ( (arg7) != 0 ) proc.a7 = (arg7);\
+	curopc.args[ 0 ] = findInterruptMatrixIndex( except_invalid_interrupt );\
+	op_int();
+
+#define INVALID_INTERRUPT( intname ) INVALID_INTERRUPT_ARGS( intname, 0 )
 
 
 typedef enum {

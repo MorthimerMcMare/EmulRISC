@@ -9,6 +9,8 @@
 
 char mem[ MAX_MEM ] = { 0 };
 
+uint32 *screenvar = (uint32 *) &mem[ MEM_KERNELVARS_BIOS_SCREEN ];
+
 
 /* Registers (modified descriptions
 		from https://www.cs.cornell.edu/courses/cs3410/2019sp/riscv/interpreter; and
@@ -27,6 +29,8 @@ char mem[ MAX_MEM ] = { 0 };
 */
 
 struct _processor {
+	uint32 instructionptr; // Also known as program counter.
+
 	union {
 		uint32 regs[ MAX_REGS ];
 		struct {
@@ -46,15 +50,15 @@ struct _processor {
 	EFlags flags;
 
 	uint32 protectedModeMemStart;
-	uint32 instructionptr;
-	uint32 tlb; // uint32 *TranslateLookasideBuffer[ 64 ]
+
+	uint32 tlb; // uint32 *TranslationLookasideBuffer[ 64 ]
 	uint32 bva; // Bad virtual address.
 } proc;
 
 
 typedef struct _float_coprocessor {
 	float regs[ MAX_FLOAT_REGS ];
-	EFlags flags;
+ 	EFlags flags;
 } floatproc;
 
 

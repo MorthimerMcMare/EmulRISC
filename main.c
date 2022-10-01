@@ -239,10 +239,11 @@ OPCODE( int_ret ) {
 
 
 OPCODE( jmp_const ) {
+	//printf( "jmp_const(). prev 0x%X, add %i, new 0x%X\n", proc.instructionptr, RISC_INSTRUCTION_LENGTH * (int32) curopc.args[ 0 ], proc.instructionptr + RISC_INSTRUCTION_LENGTH * (int32) curopc.args[ 0 ] );
 	proc.instructionptr += RISC_INSTRUCTION_LENGTH * (int32) curopc.args[ 0 ];
 }
 OPCODE( jmp_reg ) {
-	proc.instructionptr = RISC_INSTRUCTION_LENGTH * REGARG( 0 );
+	proc.instructionptr += RISC_INSTRUCTION_LENGTH * (int32) REGARG( 0 );
 }
 
 OPCODE( jz_const ) 	{ if ( proc.flags & ZF ) proc.instructionptr = curopc.args[ 0 ]; }
@@ -265,14 +266,14 @@ OPCODE( jc_reg ) 	{ if ( proc.flags & CF ) proc.instructionptr = REGARG( 0 ); }
 OPCODE( jnc_const )	{ if ( !( proc.flags & CF ) ) proc.instructionptr = curopc.args[ 0 ]; }
 OPCODE( jnc_reg ) 	{ if ( !( proc.flags & CF ) ) proc.instructionptr = REGARG( 0 ); }
 
-OPCODE( beq ) { if ( REGARG( 0 ) == REGARG( 1 ) ) proc.instructionptr = curopc.args[ 2 ]; }
-OPCODE( bne ) { if ( REGARG( 0 ) != REGARG( 1 ) ) proc.instructionptr = curopc.args[ 2 ]; }
+OPCODE( beq ) { if ( REGARG( 0 ) == REGARG( 1 ) ) proc.instructionptr += curopc.args[ 2 ]; }
+OPCODE( bne ) { if ( REGARG( 0 ) != REGARG( 1 ) ) proc.instructionptr += curopc.args[ 2 ]; }
 
-OPCODE( blt ) { if ( (int32) REGARG( 0 ) <  (int32) REGARG( 1 ) ) proc.instructionptr = curopc.args[ 2 ]; }
-OPCODE( bge ) { if ( (int32) REGARG( 0 ) >= (int32) REGARG( 1 ) ) proc.instructionptr = curopc.args[ 2 ]; }
+OPCODE( blt ) { if ( (int32) REGARG( 0 ) <  (int32) REGARG( 1 ) ) proc.instructionptr += curopc.args[ 2 ]; }
+OPCODE( bge ) { if ( (int32) REGARG( 0 ) >= (int32) REGARG( 1 ) ) proc.instructionptr += curopc.args[ 2 ]; }
 
-OPCODE( bltu ) { if ( (uint32) REGARG( 0 ) <  (uint32) REGARG( 1 ) ) proc.instructionptr = curopc.args[ 2 ]; }
-OPCODE( bgeu ) { if ( (uint32) REGARG( 0 ) >= (uint32) REGARG( 1 ) ) proc.instructionptr = curopc.args[ 2 ]; }
+OPCODE( bltu ) { if ( (uint32) REGARG( 0 ) <  (uint32) REGARG( 1 ) ) proc.instructionptr += curopc.args[ 2 ]; }
+OPCODE( bgeu ) { if ( (uint32) REGARG( 0 ) >= (uint32) REGARG( 1 ) ) proc.instructionptr += curopc.args[ 2 ]; }
 
 OPCODE( setflag )	{ proc.flags |= ( curopc.args[ 0 ] & FLAGS_Storable ); }
 OPCODE( clearflag )	{ proc.flags &= ~( curopc.args[ 0 ] & FLAGS_Storable ); }
@@ -398,15 +399,12 @@ int main( void ) {
 	proc.protectedModeMemStart = savedInstructionPos;
 
 	// Test program:
-	queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
+	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 100 } );
-	queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
+	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 2, 28 } );
 
-	//queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 16, 10 } );
-	//queueInstruction( op_load_byte, ( uint32[ 4 ] ){ 10, interruptMemory + 17 } );
-
-	/*queueInstruction( op_sub, ( uint32[ 4 ] ){ 1, 1, 2 } );		// 'H'
+	queueInstruction( op_sub, ( uint32[ 4 ] ){ 1, 1, 2 } );		// 'H'
 	queueInstruction( op_add_const, ( uint32[ 4 ] ){ 2, 2, 77 } );	// 'i'
 
 	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60001, 2 } );
@@ -417,15 +415,29 @@ int main( void ) {
 
 	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
 
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Videomemory output.
+
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0x60000 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
+
 	queueInstruction( op_jmp_const, ( uint32[ 4 ] ){ 2 } );
+	queueInstruction( op_nop, ( uint32[ 4 ] ){ 0 } );				// Will be skipped;
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 0xABCD } );	// Will be skipped.
 
-	queueInstruction( op_nop, ( uint32[ 4 ] ){ 0 } );				// Must be skipped;
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 0, 0xABCD } );	// Must be skipped.
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (via quasiBIOS).
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // A newline character (subfunc 2h)
 
-	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_printstr ) } ); // Prints a string (via quasiBIOS).
-	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_printnewline ) } );*/
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_getkey ) } ); // Waits for the keystroke.
+	/*queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 'q' } );
+	queueInstruction( op_beq, ( uint32[ 4 ] ){ 10, 11, 3 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 'Q' } );
+	queueInstruction( op_beq, ( uint32[ 4 ] ){ 10, 11, 1 } );
+	queueInstruction( op_jmp_const, ( uint32[ 4 ] ){ -5 } );*/
+
 
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( except_end_emulation ) } ); // Ends emulation (via quasiBIOS).
 
@@ -462,7 +474,7 @@ int main( void ) {
 		}
 
 		// Debug tracing (seems to be temporal):
-		printf( " [Trace 0x%04X: \"%5s ", proc.instructionptr, opcodes_matrix[ (int) curopc.id ].name );
+		/*printf( " [Trace 0x%04X: \"%5s ", proc.instructionptr, opcodes_matrix[ (int) curopc.id ].name );
 
 		for ( int i = 0; i < argLengths.argsAmount - 1; i++ )
 			printf( "%5Xh, ", curopc.args[ i ] );
@@ -470,7 +482,7 @@ int main( void ) {
 		if ( argLengths.argsAmount > 0 )
 			printf( "%5Xh", curopc.args[ argLengths.argsAmount - 1 ] );
 
-		puts( "\"]" );
+		puts( "\"]" );*/
 
 		opcodeCall( opcode->address );
 
@@ -482,6 +494,26 @@ int main( void ) {
 			opcodeCall( op_int );
 		} else if ( proc.flags & PreTF ) {
 			proc.flags = ( proc.flags | TF ) & ~PreTF;
+		}
+
+		// Videopage handling:
+		if ( ( proc.flags & VUF ) && BIOS_OUTPUT_VIDEOPAGE == ( ( *screenvar & 0xFF0000 ) >> 16 ) ) {
+			clrscr();
+
+			char outline[ 81 ] = { 0 };
+
+			for ( int i = 0; i < 25; i++ ) {
+				memcpy( outline, &mem[ MEM_VIDEOPAGE_START + i * 80 ], 80 );
+				puts( outline );
+			}
+
+			// Lower screen border:
+			memset( outline, '-', 79 );
+			outline[ 0 ] = '\\';
+			outline[ 79 ] = '/';
+			puts( outline );
+
+			proc.flags &= ~VUF;
 		}
 
 		proc.instructionptr += RISC_INSTRUCTION_LENGTH;

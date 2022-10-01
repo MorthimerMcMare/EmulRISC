@@ -171,9 +171,8 @@ EXCEPTIONOPCODE( irq6 );
 EXCEPTIONOPCODE( irq7 );
 EXCEPTIONOPCODE( end_emulation );
 
-BIOSOPCODE( printstr );
+BIOSOPCODE( print );
 BIOSOPCODE( printdigit );
-BIOSOPCODE( printnewline );
 BIOSOPCODE( videomemory );
 BIOSOPCODE( getkey );
 BIOSOPCODE( getstring );
@@ -190,7 +189,7 @@ interrupt_data interrupts_matrix[ 255 ] = {
 	{ except_invalid_opcode,	INTT_Exception | INTT_Unmaskable },
 	{ except_invalid_interrupt,	INTT_Exception | INTT_Unmaskable },
 	{ except_printscreen,		INTT_Exception },
-	{ except_irq0,				INTT_IRQ | INTT_Unmaskable }, // System timer.
+	{ except_irq0,				INTT_IRQ | INTT_Unmaskable }, // System timer (potential. Not released yet).
 	{ except_irq1, 				INTT_IRQ },
 	{ except_irq2, 				INTT_IRQ }, // 0x08
 	{ except_irq3, 				INTT_IRQ },
@@ -200,10 +199,9 @@ interrupt_data interrupts_matrix[ 255 ] = {
 	{ except_irq7, 				INTT_IRQ },
 	{ NULL, 0 },
 	{ except_end_emulation,		INTT_Exception | INTT_Unmaskable },
-	{ bios_printstr,			INTT_BIOS }, // 0x10
+	{ bios_videomemory,			INTT_BIOS }, // 0x10
+	{ bios_print,				INTT_BIOS },
 	{ bios_printdigit,			INTT_BIOS },
-	{ bios_printnewline,		INTT_BIOS },
-	{ bios_videomemory,			INTT_BIOS },
 	{ bios_getkey,				INTT_BIOS },
 	{ bios_getstring,			INTT_BIOS },
 };

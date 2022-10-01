@@ -1,6 +1,9 @@
 //
 // Exceptions and quasiBIOS functions.
 //
+// (...Yes, I perfectly know that it's mauvais ton to write
+//code in header files).
+//
 
 #ifndef __RISCEMUL_QUASIBIOS_H
 #define __RISCEMUL_QUASIBIOS_H
@@ -9,7 +12,9 @@
 #include <string.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <math.h>
 #include "defines.h"
+
 
 EXCEPTIONOPCODE( zero_division ) {
 	puts( "Division by zero." );
@@ -49,28 +54,114 @@ EXCEPTIONOPCODE( end_emulation ) {
 	proc.flags |= EndEmulF;
 }
 
+
+
+// QuasiBIOS output.
+//   0: console direct;
+//   1: console with newlines;
+//   2: to videopage;
+//   3: freezed videopage.
+#define BIOS_OUTPUT_CONSOLE 0
+#define BIOS_OUTPUT_CONSOLE_NEWLINES 1
+#define BIOS_OUTPUT_VIDEOPAGE 2
+#define BIOS_OUTPUT_VIDEOPAGE_FREEZED 3
+
+uint32 internalPrintString( char *outstring ) {
+	uint32 outputMode = ( *screenvar & 0xFF0000 ) >> 16;
+	uint32 cursorpos;
+	uint32 outAmount = 0;
+
+	switch ( outputMode ) {
+		case BIOS_OUTPUT_CONSOLE:
+			outAmount = printf( "%s", outstring );
+			break;
+		case BIOS_OUTPUT_CONSOLE_NEWLINES:
+			outAmount = printf( "%s", outstring ) + 1;
+			putchar( '\n' );
+			break;
+		case BIOS_OUTPUT_VIDEOPAGE:
+		case BIOS_OUTPUT_VIDEOPAGE_FREEZED:
+			cursorpos = ( mem[ MEM_KERNELVARS_BIOS_SCREEN ] & 0xFFFF );
+
+			char *curoutpos = &mem[ MEM_VIDEOPAGE_START + cursorpos ];
+			char *curchar = outstring;
+
+			for ( outAmount = 0; *curchar != '\x0' && outAmount < MEM_VIDEOPAGE_TEXTAMOUNT - cursorpos; curchar++, curoutpos++, outAmount++ )
+				*curoutpos = *curchar;
+
+			mem[ MEM_KERNELVARS_BIOS_SCREEN ] += outAmount; // Absolute position is a last two bytes.
+
+			//strncpy( (char *) &mem[ MEM_VIDEOPAGE_START + cursorpos ], outstring, MIN( MEM_VIDEOPAGE_TEXTAMOUNT - cursorpos, strlen( outstring ) ) );
+
+			if ( outputMode == BIOS_OUTPUT_VIDEOPAGE )
+				proc.flags |= VUF;
+			break;
+		default:
+			printf( "internalPrintString(). Warning: unknown output mode '%u'.\n", outputMode );
+			break;
+	}
+
+	return outAmount;
+}
+
+void internalPrintChar( char outchar ) {
+	uint32 outputMode = ( *screenvar & 0xFF0000 ) >> 16;
+
+	switch ( outputMode ) {
+		case BIOS_OUTPUT_CONSOLE:
+		case BIOS_OUTPUT_CONSOLE_NEWLINES:
+			putchar( outchar );
+			break;
+		case BIOS_OUTPUT_VIDEOPAGE:
+		case BIOS_OUTPUT_VIDEOPAGE_FREEZED:
+			if ( ( mem[ MEM_KERNELVARS_BIOS_SCREEN ] & 0xFFFF ) < MEM_VIDEOPAGE_TEXTAMOUNT ) {
+				mem[ MEM_VIDEOPAGE_START + ( mem[ MEM_KERNELVARS_BIOS_SCREEN ] & 0xFFFF ) ] = outchar;
+				mem[ MEM_KERNELVARS_BIOS_SCREEN ]++;
+
+				if ( outputMode == BIOS_OUTPUT_VIDEOPAGE )
+					proc.flags |= VUF;
+			}
+			break;
+		default:
+			printf( "internalPrintChar(). Warning: unknown output mode '%u'.\n", outputMode );
+			break;
+	}
+}
+
+
 // Prints a string to the stdout.
 //   a0: index of the first memory char cell;
-//   a1: maximal amount of symbols;
-//   return t0: finish memory pointer (next from last '\x0');
-//   return t1: real amount of symbols (excluding last '\x0').
-BIOSOPCODE( printstr ) {
-	char *curchar = &mem[ proc.a0 ];
-
-	uint32 maxchars = proc.a1;
+//   a1: print type. 1 == char, 2 == '\n' (ignoring a0), other == null-terminated string.
+//   return a0: finish memory pointer (next from last '\x0');
+//   return a1: real amount of symbols (excluding last '\x0').
+BIOSOPCODE( print ) {
+	switch ( proc.a1 ) {
+		case 1:
+			internalPrintChar( mem[ proc.a0 ] );
+			break;
+		case 2:
+			internalPrintChar( '\n' );
+			break;
+		default:
+			proc.a1 = internalPrintString( &mem[ proc.a0 ] );
+			proc.a0 = proc.a0 + proc.a1 + 1;
+			break;
+	}
+	/*uint32 maxchars = proc.a1;
 	if ( maxchars == 0 )
 		maxchars = UINT32_MAX;
 
-	//printf( "op_bios_printstr(). maxchars %u, curchar %i. Mem[0x%X..+10] == ", maxchars, *curchar, proc.a0 );
-	//for ( uint32 i = 0; i < 10; i++ )
-	//	printf( "%02X ", mem[ i + proc.a0 ] );
-	//puts( "" );
+	printf( "op_bios_printstr(). maxchars %u, curchar %i. Mem[0x%X..+10] == ", maxchars, *curchar, proc.a0 );
+	for ( uint32 i = 0; i < 10; i++ )
+		printf( "%02X ", mem[ i + proc.a0 ] );
+	puts( "" );
+
 	proc.t1 = 0;
 
 	for ( ; *curchar != '\x0' && proc.t1 < maxchars; curchar++, proc.t1++ )
 		putchar( *curchar );
 
-	proc.t0 = proc.a0 + proc.t1 + 1;
+	proc.t0 = proc.a0 + proc.t1 + 1;*/
 }
 
 // Prints a digit base X to the stdout.
@@ -91,8 +182,13 @@ BIOSOPCODE( printdigit ) {
 		default: fastprinted = 0; break;
 	}
 
-	if ( fastprinted || ( proc.a2 >= 36 ) )
+	if ( fastprinted )
 		return;
+
+	if ( proc.a2 >= 36 ) {
+		INVALID_INTERRUPT_ARG( bios_printdigit, 36 );
+		return;
+	}
 
 	proc.t1 = 0;
 
@@ -119,11 +215,7 @@ BIOSOPCODE( printdigit ) {
 	if ( sign )
 		*( --s ) = '-';
 
-	printf( "%s", to + ( 65 - len ) );
-}
-
-BIOSOPCODE( printnewline ) {
-	putchar( '\n' );
+	internalPrintString( to + ( 65 - len ) );
 }
 
 BIOSOPCODE( videomemory ) {
@@ -132,17 +224,34 @@ BIOSOPCODE( videomemory ) {
 	uint32 *screenvar = (uint32 *) &mem[ MEM_KERNELVARS_BIOS_SCREEN ];
 
 	switch ( action ) {
-		case 0: // Clear screen.
+		case 1: // Clear screen (videopage).
 			memset( &mem[ MEM_VIDEOPAGE_START ], '\x0', MEM_VIDEOPAGE_TEXTAMOUNT );
+			proc.flags |= VUF;
 			break;
-		case 1: // Set cursor X.
+		case 2: // Set cursor X.
 			if ( arg1 < 80 )
-				*screenvar = ( *screenvar & ~0xFF ) | arg1;
+				*screenvar = (*screenvar & ~0xFFFF) + arg1 + (int) floor( (*screenvar & 0xFFFF) / 80.0 );
 			break;
-		case 2: // Set cursor Y.
+		case 3: // Set cursor Y.
 			if ( arg1 < 25 )
-				*screenvar = ( *screenvar & ~0xFF00 ) | ( arg1 << 8 );
+				*screenvar = (*screenvar & ~0xFFFF) + ( (*screenvar & 0xFFFF) % 80 ) + arg1 * 80;
 			break;
+		case 4: // Set cursor absolute X/Y.
+			if ( arg1 < MEM_VIDEOPAGE_TEXTAMOUNT )
+				*screenvar = ( *screenvar & ~0xFFFF ) | arg1;
+			break;
+		case 5: // Add cursor X.
+			if ( arg1 + (*screenvar) > MEM_VIDEOPAGE_TEXTAMOUNT - 1 )
+				arg1 = MEM_VIDEOPAGE_TEXTAMOUNT - 1;
+
+			*screenvar += arg1;
+			break;
+		case 0: // Switch output mode (0: console direct, 1: console with newlines, 2: to videopage, 3: freezed videopage).
+			if ( arg1 < 3 )
+				*screenvar = ( *screenvar & ~0xFF0000 ) | ( arg1 << 16 );
+
+			if ( arg1 == BIOS_OUTPUT_VIDEOPAGE )
+				proc.flags |= VUF;
 		default:
 			break;
 	}
@@ -153,7 +262,9 @@ BIOSOPCODE( getkey ) {
 }
 
 BIOSOPCODE( getstring ) {
-	fgets( &mem[ proc.a0 ], MAX_MEM - proc.a0 - 1, stdin );
+	uint32 maxAmount = ( proc.a1 != 0? MIN( proc.a1, MAX_MEM - proc.a0 - 1 ): MAX_MEM - proc.a0 - 1 );
+
+	fgets( &mem[ proc.a0 ], maxAmount, stdin );
 }
 
 
