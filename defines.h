@@ -83,8 +83,12 @@ typedef void (opcode_pointer)( void );
 # define puts(string); printw( "%s\n", (string) );
 # define putchar(pchar) printw( "%c", (char) (pchar) )
 # define LINUX_NCURSES
+# define LINUX_OS
 #else
 # define getch getchar
+# define clrscr() printf( "\033[2J" )
+# define LINUX_DIRECT
+# define LINUX_OS
 #endif
 
 #ifndef LINUX_NCURSES

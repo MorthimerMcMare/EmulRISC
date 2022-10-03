@@ -504,7 +504,15 @@ int main( void ) {
 
 			for ( int i = 0; i < 25; i++ ) {
 				memcpy( outline, &mem[ MEM_VIDEOPAGE_START + i * 80 ], 80 );
+#ifdef LINUX_OS
+				for ( int j = 0; j < 80; j++ )
+					if ( outline[ j ] < ' ' )
+						outline[ j ] = ' ';
+
+				printf( "%s", outline );
+#else
 				fwrite( outline, 80, sizeof( char ), stdout );
+#endif
 				puts( "|" );
 			}
 
@@ -527,6 +535,7 @@ int main( void ) {
 	} // of while ( !( proc.flags & EndEmulF ) ) {}
 
 #ifdef LINUX_NCURSES
+	printf( "\nPress any key to exit from the ncurses mode... " );
 	getch();
 	endwin();
 #endif
