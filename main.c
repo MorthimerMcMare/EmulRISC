@@ -489,7 +489,15 @@ int main( void ) {
 		//printf( " [\\Post regs: ra 0x%X; a0..a2 {0x%X, 0x%X, 0x%X}; t0..t2 {0x%X, 0x%X, 0x%X}]", proc.ra, proc.a0, proc.a1, proc.a2, proc.t0, proc.t1, proc.t2 );
 		//printFlags();
 
+		// Trace interrupt call:
 		if ( ( proc.flags & ( TF | EndEmulF ) ) == TF ) {
+			mem[ MEM_KERNELVARS_TRACE_CUROPCODE ] = curopc.id;
+			mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSAMOUNT ] = argLengths.argsAmount;
+			mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSTYPE ] = opcodes_matrix[ (int) curopc.id ].structType;
+
+			for ( int i = 0; i < 4; i++ )
+				* (uint32 *) &mem[ MEM_KERNELVARS_TRACE_OPCARG_START + i * 4 ] = curopc.args[ i ];
+
 			curopc.args[ 0 ] = traceExceptionIndex;
 			opcodeCall( op_int );
 		} else if ( proc.flags & PreTF ) {
