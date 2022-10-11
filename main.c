@@ -239,8 +239,8 @@ OPCODE( int_ret ) {
 
 
 OPCODE( jmp_const ) {
-	printf( "jmp_const(). prev 0x%X, add %i, new 0x%X\n", proc.instructionptr, (int32) ( curopc.args[ 0 ] - 1 ) * RISC_INSTRUCTION_LENGTH, proc.instructionptr + (int32) ( curopc.args[ 0 ] - 1 ) * RISC_INSTRUCTION_LENGTH );
-	proc.instructionptr += (int32) ( curopc.args[ 0 ] - 1 ) * RISC_INSTRUCTION_LENGTH;
+	//printf( "jmp_const(). prev 0x%X, add %i, new 0x%X\n", proc.instructionptr, ( (int16) curopc.args[ 0 ] ) * RISC_INSTRUCTION_LENGTH, proc.instructionptr + ( (int16) curopc.args[ 0 ] ) * RISC_INSTRUCTION_LENGTH );
+	proc.instructionptr += ( (int16) curopc.args[ 0 ] ) * RISC_INSTRUCTION_LENGTH;
 }
 OPCODE( jmp_reg ) {
 	proc.instructionptr += RISC_INSTRUCTION_LENGTH * (int32) REGARG( 0 );
@@ -267,18 +267,18 @@ OPCODE( jnc_const )	{ if ( !( proc.flags & CF ) ) proc.instructionptr = curopc.a
 OPCODE( jnc_reg ) 	{ if ( !( proc.flags & CF ) ) proc.instructionptr = REGARG( 0 ); }*/
 
 // printf( "op_beq_near(). [r0] %i == [r1] %i? new pos 0x%04X\n", REGARG( 0 ), REGARG( 1 ), proc.instructionptr + (int) curopc.args[ 2 ] * RISC_INSTRUCTION_LENGTH );
-OPCODE( beq_near ) { if ( REGARG( 0 ) == REGARG( 1 ) ) proc.instructionptr += (int32) ( curopc.args[ 2 ] - 1 ) * RISC_INSTRUCTION_LENGTH; }
-OPCODE( bne_near ) { if ( REGARG( 0 ) != REGARG( 1 ) ) proc.instructionptr += (int32) ( curopc.args[ 2 ] - 1 ) * RISC_INSTRUCTION_LENGTH; }
+OPCODE( beq_near ) { if ( REGARG( 0 ) == REGARG( 1 ) ) proc.instructionptr += ( (int16) curopc.args[ 2 ] ) * RISC_INSTRUCTION_LENGTH; }
+OPCODE( bne_near ) { if ( REGARG( 0 ) != REGARG( 1 ) ) proc.instructionptr += ( (int16) curopc.args[ 2 ] ) * RISC_INSTRUCTION_LENGTH; }
 OPCODE( beq_far ) { if ( REGARG( 0 ) == REGARG( 1 ) ) proc.instructionptr = REGARG( 2 ); }
 OPCODE( bne_far ) { if ( REGARG( 0 ) != REGARG( 1 ) ) proc.instructionptr = REGARG( 2 ); }
 
-OPCODE( blt_near ) { if ( (int32) REGARG( 0 ) <  (int32) REGARG( 1 ) ) proc.instructionptr += (int32) ( curopc.args[ 2 ] - 1 ) * RISC_INSTRUCTION_LENGTH; }
-OPCODE( bge_near ) { if ( (int32) REGARG( 0 ) >= (int32) REGARG( 1 ) ) proc.instructionptr += (int32) ( curopc.args[ 2 ] - 1 ) * RISC_INSTRUCTION_LENGTH; }
+OPCODE( blt_near ) { if ( (int32) REGARG( 0 ) <  (int32) REGARG( 1 ) ) proc.instructionptr += ( (int16) curopc.args[ 2 ] ) * RISC_INSTRUCTION_LENGTH; }
+OPCODE( bge_near ) { if ( (int32) REGARG( 0 ) >= (int32) REGARG( 1 ) ) proc.instructionptr += ( (int16) curopc.args[ 2 ] ) * RISC_INSTRUCTION_LENGTH; }
 OPCODE( blt_far ) { if ( (int32) REGARG( 0 ) <  (int32) REGARG( 1 ) ) proc.instructionptr = REGARG( 2 ); }
 OPCODE( bge_far ) { if ( (int32) REGARG( 0 ) >= (int32) REGARG( 1 ) ) proc.instructionptr = REGARG( 2 ); }
 
-OPCODE( bltu_near ) { if ( (uint32) REGARG( 0 ) <  (uint32) REGARG( 1 ) ) proc.instructionptr += (int32) ( curopc.args[ 2 ] - 1 ) * RISC_INSTRUCTION_LENGTH; }
-OPCODE( bgeu_near ) { if ( (uint32) REGARG( 0 ) >= (uint32) REGARG( 1 ) ) proc.instructionptr += (int32) ( curopc.args[ 2 ] - 1 ) * RISC_INSTRUCTION_LENGTH; }
+OPCODE( bltu_near ) { if ( (uint32) REGARG( 0 ) <  (uint32) REGARG( 1 ) ) proc.instructionptr += ( (int16) curopc.args[ 2 ] ) * RISC_INSTRUCTION_LENGTH; }
+OPCODE( bgeu_near ) { if ( (uint32) REGARG( 0 ) >= (uint32) REGARG( 1 ) ) proc.instructionptr += ( (int16) curopc.args[ 2 ] ) * RISC_INSTRUCTION_LENGTH; }
 OPCODE( bltu_far ) { if ( (uint32) REGARG( 0 ) <  (uint32) REGARG( 1 ) ) proc.instructionptr = REGARG( 2 ); }
 OPCODE( bgeu_far ) { if ( (uint32) REGARG( 0 ) >= (uint32) REGARG( 1 ) ) proc.instructionptr = REGARG( 2 ); }
 
@@ -345,6 +345,7 @@ void queueInstruction( opcode_pointer opcode, const uint32 opcargs[ static const
 
 				if ( opcargs[ i ] >= (uint32) ( 1 << curLength ) ) {
 					printf( "queueInstruction(). Warning: in opcode \"%s\" (args[%i] == 0x%04X) >= (field max length 0x%04X). Skipping.\n", opcodes_matrix[ (int) opcodeIndex ].name, i, opcargs[ i ], ( 1 << curLength ) );
+					getch();
 				} else {
 					uint32 newBitMask = ( ( opcargs[ i ] & ( ( 1 << curLength ) - 1 ) ) << ( 32 - curBitOffset ) );
 					newSrcMem |= newBitMask;
@@ -365,11 +366,20 @@ void queueInstruction( opcode_pointer opcode, const uint32 opcargs[ static const
 			proc.protectedModeMemStart += RISC_INSTRUCTION_LENGTH;
 		} else {
 			printf( "queueInstruction(). Warning: unknown opcode (%i). Args[] == { %u, %u, %u, %u }.", opcodeIndex, opcargs[ 0 ], opcargs[ 1 ], opcargs[ 2 ], opcargs[ 3 ] );
+			getch();
 		}
 	} else {
 		puts( "queueInstruction(). Warning: tried to add an opcode during VM execution." );
 	}
 } // of void queueInstruction( opcode_pointer opcode, const uint32 opcargs[ static const 4 ] ) {}
+
+void setMemoryArray( uint32 address, char *source, uint16 amount ) {
+	memcpy( &mem[ address ], source, amount );
+}
+
+void setMemoryString( uint32 address, char *source ) {
+	strcpy( &mem[ address ], source );
+}
 
 
 int main( void ) {
@@ -406,27 +416,25 @@ int main( void ) {
 
 	// Test program:
 	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 100 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 2, 28 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 100 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 28 } );
 	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 
-	queueInstruction( op_sub, ( uint32[ 4 ] ){ 1, 1, 2 } );		// 'H'
-	queueInstruction( op_add_const, ( uint32[ 4 ] ){ 2, 2, 77 } );	// 'i'
+	queueInstruction( op_sub, ( uint32[ 4 ] ){ 10, 10, 11 } );		// 'H'
+	queueInstruction( op_add_const, ( uint32[ 4 ] ){ 11, 11, 77 } );	// 'i'
 
-	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60001, 2 } );
-	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60000, 1 } );
+	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60001, 11 } );
+	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60000, 10 } );
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, '!' } );	// '!'
-	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60002, 1 } );
-
-	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, '!' } );	// '!'
+	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60002, 10 } );
 
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
-	//queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Videomemory output.
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Videomemory output.
 
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 999 } );				// (0x1FFF8A8 vs 0x1FFF830).
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 999 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Moves cursor (subfunc 4h).
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0x60000 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
@@ -439,14 +447,24 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // A newline character (subfunc 2h)
 
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 80 * 24 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Moves cursor (subfunc 4h).
+
+	setMemoryString( 0x60020, "(Press 'q' to exit...)" );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0x60020 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } );
+
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_getkey ) } ); // Waits for the keystroke.
-	/*queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 'q' } );
-	queueInstruction( op_beq_near, ( uint32[ 4 ] ){ 10, 11, 3 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 'q' } );
+	queueInstruction( op_beq_near, ( uint32[ 4 ] ){ 10, 11, 4 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 'Q' } );
-	queueInstruction( op_beq_near, ( uint32[ 4 ] ){ 10, 11, 1 } );
-	//queueInstruction( op_jmp_const, ( uint32[ 4 ] ){ (int32) -5 & 0xFFFF } );*/
+	queueInstruction( op_beq_near, ( uint32[ 4 ] ){ 10, 11, 2 } );
+	queueInstruction( op_jmp_const, ( uint32[ 4 ] ){ 0xFFFF - 5 } );
 
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( except_end_emulation ) } ); // Ends emulation (via quasiBIOS).
+
 
 	puts( "================" );
 	proc.protectedModeMemStart += ( 1024 - proc.protectedModeMemStart ) % 1024;
@@ -457,12 +475,11 @@ int main( void ) {
 	//uint32 last_opcode_id_exitcheck = 0;
 
 	uint32 traceExceptionIndex = FINDINT( except_trace );
+	uint32 prevInstrutionPtr = proc.instructionptr;
 
 	while ( !( proc.flags & EndEmulF ) ) {
 		// Parsing:
-		uint32 startptr = proc.instructionptr;
-
-		curopc.srcmem.t32 = * (uint32 *) &mem[ startptr ];
+		curopc.srcmem.t32 = * (uint32 *) &mem[ proc.instructionptr ];
 		curopc.id = ( curopc.srcmem.t32 >> 26 );
 
 		opcode_data *opcode = getOpcodeData( curopc.id );
@@ -481,7 +498,7 @@ int main( void ) {
 		}
 
 		// Debug tracing (seems to be temporal):
-		printf( " [Trace 0x%04X: \"%5s ", proc.instructionptr, opcodes_matrix[ (int) curopc.id ].name );
+		/*printf( " [Trace 0x%04X: \"%5s ", proc.instructionptr, opcodes_matrix[ (int) curopc.id ].name );
 
 		for ( int i = 0; i < argLengths.argsAmount - 1; i++ )
 			printf( "%5Xh, ", curopc.args[ i ] );
@@ -489,7 +506,7 @@ int main( void ) {
 		if ( argLengths.argsAmount > 0 )
 			printf( "%5Xh", curopc.args[ argLengths.argsAmount - 1 ] );
 
-		puts( "\"]" );
+		puts( "\"]" );*/
 
 		opcodeCall( opcode->address );
 
@@ -520,6 +537,7 @@ int main( void ) {
 			for ( int i = 0; i < 25; i++ ) {
 				memcpy( outline, &mem[ MEM_VIDEOPAGE_START + i * 80 ], 80 );
 #ifdef LINUX_OS
+				// It's strange, but "fwrite()" on Linux seems to output only non-null characters.
 				for ( int j = 0; j < 80; j++ )
 					if ( outline[ j ] < ' ' )
 						outline[ j ] = ' ';
@@ -539,7 +557,10 @@ int main( void ) {
 			proc.flags &= ~VUF;
 		}
 
-		proc.instructionptr += RISC_INSTRUCTION_LENGTH;
+		if ( proc.instructionptr == prevInstrutionPtr )
+			proc.instructionptr += RISC_INSTRUCTION_LENGTH;
+
+		prevInstrutionPtr = proc.instructionptr;
 		proc.zero = 0;
 
 		// Emergency exit check:

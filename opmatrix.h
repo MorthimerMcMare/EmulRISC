@@ -43,6 +43,8 @@ OPCODE( neg );
 OPCODE( call_const );
 OPCODE( call_reg );
 
+OPCODE( jmp_const );
+
 OPCODE( beq_near );
 OPCODE( bne_near );
 OPCODE( beq_far );
@@ -71,7 +73,7 @@ typedef struct {
 } opcode_data;
 
 opcode_data opcodes_matrix[ 64 ] = {
-	{ op_nop,			OPST_None,	"nop" },
+	{ op_int,			OPST_ByteConst, "int" },
 
 	{ op_mov_const,		OPST_1RegC,	"mov" },
 	{ op_load_byte,		OPST_1RegC,	"ldb" },
@@ -82,8 +84,8 @@ opcode_data opcodes_matrix[ 64 ] = {
 	{ op_store_word,	OPST_C1Reg,	"svw" },
 	{ op_store_dword,	OPST_C1Reg,	"svd" },
 
-	{ op_add,			OPST_3RegC,	"add" }, // add [where], [op1], [op2], [const]  // where = op1 + op2 + const8;
-	{ op_add_const,		OPST_2RegC,	"addv" },// addv [where], [op1], [const]        // where = op1 + const24;
+	{ op_add,			OPST_3RegC,	"add" },  // add [where], [op1], [op2], [const]	 // where = op1 + op2 + const11;
+	{ op_add_const,		OPST_2RegC,	"addv" }, // addv [where], [op1], [const]		 // where = op1 + const16;
 	{ op_sub,			OPST_3RegC,	"sub" },
 	{ op_mul,			OPST_4Reg,	"mul" },
 	{ op_mul_u,			OPST_4Reg,	"mulu" },
@@ -104,8 +106,8 @@ opcode_data opcodes_matrix[ 64 ] = {
 	{ op_call_const,	OPST_1RegC, "callv" },
 	{ op_call_reg,		OPST_2RegC, "call" },
 
-	/*{ op_jmp_const,		OPST_WordConst, "jmp" },
-	{ op_jz_const,		OPST_MaxConst, "jz" },
+	{ op_jmp_const,		OPST_WordConst, "jmp" },
+	/*{ op_jz_const,		OPST_MaxConst, "jz" },
 	{ op_jnz_const,		OPST_MaxConst, "jnz" },
 	{ op_js_const,		OPST_WordConst, "js" },
 	{ op_jns_const,		OPST_WordConst, "jns" },
@@ -129,9 +131,8 @@ opcode_data opcodes_matrix[ 64 ] = {
 
 	{ op_setflag,		OPST_ByteConst, "stf" },
 	{ op_clearflag,		OPST_ByteConst, "clf" },
-
-	{ op_int,			OPST_ByteConst, "int" },
 	{ op_int_ret,		OPST_None, "iret" },
+	{ op_nop,			OPST_None,	"nop" },
 };
 
 
@@ -159,6 +160,7 @@ int16_t findOpcodeMatrixIndex( opcode_pointer opcode ) {
 
 // Heavily modified exceptions list from https://www.cs.cmu.edu/~ralf/files.html, "OVERVIEW.LST".
 
+EXCEPTIONOPCODE( end_emulation );
 EXCEPTIONOPCODE( zero_division );
 EXCEPTIONOPCODE( trace );
 EXCEPTIONOPCODE( breakpoint );
@@ -173,7 +175,6 @@ EXCEPTIONOPCODE( irq4 );
 EXCEPTIONOPCODE( irq5 );
 EXCEPTIONOPCODE( irq6 );
 EXCEPTIONOPCODE( irq7 );
-EXCEPTIONOPCODE( end_emulation );
 
 BIOSOPCODE( print );
 BIOSOPCODE( printdigit );
@@ -187,6 +188,7 @@ typedef struct {
 } interrupt_data;
 
 interrupt_data interrupts_matrix[ 255 ] = {
+	{ except_end_emulation,		INTT_Exception | INTT_Unmaskable },
 	{ except_zero_division,		INTT_Exception | INTT_Unmaskable },
 	{ except_trace,				INTT_Exception | INTT_Unmaskable },
 	{ except_breakpoint,		INTT_Exception | INTT_Unmaskable },
@@ -194,15 +196,14 @@ interrupt_data interrupts_matrix[ 255 ] = {
 	{ except_invalid_interrupt,	INTT_Exception | INTT_Unmaskable },
 	{ except_printscreen,		INTT_Exception },
 	{ except_irq0,				INTT_IRQ | INTT_Unmaskable }, // System timer (potential. Not released yet).
-	{ except_irq1, 				INTT_IRQ },
-	{ except_irq2, 				INTT_IRQ }, // 0x08
+	{ except_irq1, 				INTT_IRQ }, // 0x08
+	{ except_irq2, 				INTT_IRQ },
 	{ except_irq3, 				INTT_IRQ },
 	{ except_irq4, 				INTT_IRQ },
 	{ except_irq5, 				INTT_IRQ },
 	{ except_irq6, 				INTT_IRQ },
 	{ except_irq7, 				INTT_IRQ },
 	{ NULL, 0 },
-	{ except_end_emulation,		INTT_Exception | INTT_Unmaskable },
 	{ bios_videomemory,			INTT_BIOS }, // 0x10
 	{ bios_print,				INTT_BIOS },
 	{ bios_printdigit,			INTT_BIOS },
