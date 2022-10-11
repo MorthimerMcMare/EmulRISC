@@ -43,22 +43,20 @@ OPCODE( neg );
 OPCODE( call_const );
 OPCODE( call_reg );
 
-OPCODE( jmp_const );
-OPCODE( jz_const );
-OPCODE( jnz_const );
-OPCODE( js_const );
-OPCODE( jns_const );
-OPCODE( jo_const );
-OPCODE( jno_const );
-OPCODE( jc_const );
-OPCODE( jnc_const );
+OPCODE( beq_near );
+OPCODE( bne_near );
+OPCODE( beq_far );
+OPCODE( bne_far );
 
-OPCODE( beq );
-OPCODE( bne );
-OPCODE( blt );
-OPCODE( bge );
-OPCODE( bltu );
-OPCODE( bgeu );
+OPCODE( blt_near );
+OPCODE( bge_near );
+OPCODE( blt_far );
+OPCODE( bge_far );
+
+OPCODE( bltu_near );
+OPCODE( bgeu_near );
+OPCODE( bltu_far );
+OPCODE( bgeu_far );
 
 OPCODE( setflag );
 OPCODE( clearflag );
@@ -84,8 +82,8 @@ opcode_data opcodes_matrix[ 64 ] = {
 	{ op_store_word,	OPST_C1Reg,	"svw" },
 	{ op_store_dword,	OPST_C1Reg,	"svd" },
 
-	{ op_add,			OPST_3RegC,	"add" },
-	{ op_add_const,		OPST_2RegC,	"addv" },
+	{ op_add,			OPST_3RegC,	"add" }, // add [where], [op1], [op2], [const]  // where = op1 + op2 + const8;
+	{ op_add_const,		OPST_2RegC,	"addv" },// addv [where], [op1], [const]        // where = op1 + const24;
 	{ op_sub,			OPST_3RegC,	"sub" },
 	{ op_mul,			OPST_4Reg,	"mul" },
 	{ op_mul_u,			OPST_4Reg,	"mulu" },
@@ -106,7 +104,7 @@ opcode_data opcodes_matrix[ 64 ] = {
 	{ op_call_const,	OPST_1RegC, "callv" },
 	{ op_call_reg,		OPST_2RegC, "call" },
 
-	{ op_jmp_const,		OPST_WordConst, "jmp" },
+	/*{ op_jmp_const,		OPST_WordConst, "jmp" },
 	{ op_jz_const,		OPST_MaxConst, "jz" },
 	{ op_jnz_const,		OPST_MaxConst, "jnz" },
 	{ op_js_const,		OPST_WordConst, "js" },
@@ -114,14 +112,20 @@ opcode_data opcodes_matrix[ 64 ] = {
 	{ op_jo_const,		OPST_WordConst, "jo" },
 	{ op_jno_const,		OPST_WordConst, "jno" },
 	{ op_jc_const,		OPST_WordConst, "jc" },
-	{ op_jnc_const,		OPST_WordConst, "jnc" },
+	{ op_jnc_const,		OPST_WordConst, "jnc" },*/
 
-	{ op_beq,			OPST_2RegC, "beq" },
-	{ op_bne,			OPST_2RegC, "bne" },
-	{ op_blt,			OPST_2RegC, "blt" },
-	{ op_bge,			OPST_2RegC, "bge" },
-	{ op_bltu,			OPST_2RegC, "bltu" },
-	{ op_bgeu,			OPST_2RegC, "bgeu" },
+	{ op_beq_near,		OPST_2RegC, "beq" },
+	{ op_bne_near,		OPST_2RegC, "bne" },
+	{ op_beq_far,		OPST_3Reg, "beqf" },
+	{ op_bne_far,		OPST_3Reg, "bnef" },
+	{ op_blt_near,		OPST_2RegC, "blt" },
+	{ op_bge_near,		OPST_2RegC, "bge" },
+	{ op_blt_far,		OPST_3Reg, "bltf" },
+	{ op_bge_far,		OPST_3Reg, "bgef" },
+	{ op_bltu_near,		OPST_2RegC, "bltu" },
+	{ op_bgeu_near,		OPST_2RegC, "bgeu" },
+	{ op_bltu_far,		OPST_3Reg, "bltuf" },
+	{ op_bgeu_far,		OPST_3Reg, "bgeuf" },
 
 	{ op_setflag,		OPST_ByteConst, "stf" },
 	{ op_clearflag,		OPST_ByteConst, "clf" },

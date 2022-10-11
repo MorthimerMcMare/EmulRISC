@@ -126,7 +126,7 @@ typedef enum {
 	RlModeF	= 0x4000,	// Real (root/system) processor mode flag.
 	EndEmulF= 0x8000,	// Exit flag. Maybe will be removed in future.
 
-	FLAGS_Storable = ZF | SF | CF | OF | IF | TF | FDDF | FNF | FPF // They will be handled via "pushf"/"popf".
+	FLAGS_Storable = ZF | SF | CF | OF | IF | TF | FDDF | FNF | FPF // They will be handled via "iret" and same opcodes.
 } EFlags;
 
 #define IF_REAL_MODE if ( proc.flags & RlModeF )
