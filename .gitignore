@@ -53,4 +53,4 @@ dkms.conf
 
 # [McM]: potential standard streams redirection files.
 stderr.*
-stdout.*
+stdout*.*
