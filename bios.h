@@ -166,24 +166,29 @@ BIOSOPCODE( print ) {
 
 // Prints a digit base X to the stdout.
 //   a0: index of the first memory char cell;
-//   a1: amount of bytes;
+//   a1: amount of bytes ([McM]: now unused and so may be deprecated);
 //   a2: destination base.
 static const char *DIGITS = "0123456789ABCDEFGHIKLMNOPQRSTVXYZ";
 
 BIOSOPCODE( printdigit ) {
-	int32 digit = * (int64 *) &mem[ proc.a0 ] & ( ( 1 << proc.a1 ) - 1 );
+	int32 digit = ( * (int32 *) &mem[ proc.a0 ] );// & ( ( 1 << proc.a1 ) - 1 );
+
+	//printf( "bios_printdigit(). %i\n", digit );
 
 	unsigned char fastprinted = 1;
+	char to[ 65 ] = { 0 };
 
 	switch ( proc.a2 ) {
-		case 0: case 10: printf( "%i", digit ); break;
-		case 8: printf( "%o", (uint32) digit ); break;
-		case 16: printf( "%X", (uint32) digit ); break;
+		case 0: case 10: sprintf( to, "%i", digit ); break;
+		case 8: sprintf( to, "%o", (uint32) digit ); break;
+		case 16: sprintf( to, "%X", (uint32) digit ); break;
 		default: fastprinted = 0; break;
 	}
 
-	if ( fastprinted )
+	if ( fastprinted ) {
+		internalPrintString( to );
 		return;
+	}
 
 	if ( proc.a2 >= 36 ) {
 		INVALID_INTERRUPT_ARG( bios_printdigit, 36 );
@@ -192,7 +197,6 @@ BIOSOPCODE( printdigit ) {
 
 	proc.t1 = 0;
 
-	char to[ 65 ];
 	char *s = to + 65;
 	char sign;
 	unsigned len;

@@ -69,7 +69,7 @@ OPCODE( int_ret );
 typedef struct {
 	void ( *address )( void );
 	EOpcodeStructureType structType;
-	char name[ 7 ];
+	char name[ 6 ];
 } opcode_data;
 
 opcode_data opcodes_matrix[ 64 ] = {

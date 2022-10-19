@@ -33,6 +33,11 @@ OPCODE( load_word ) {
 }
 OPCODE( load_dword ) {
 	REGARG( 0 ) = ( * (uint32 *) &mem[ curopc.args[ 1 ] ] ) + curopc.args[ 2 ];
+
+	/*printf( "load_dword(). mem[ 0x%X ] = 0x%02X. Add %i\n", curopc.args[ 1 ], * (uint32 *) &mem[ curopc.args[ 1 ] ], curopc.args[ 2 ] );
+	for ( uint32 i = curopc.args[ 1 ]; i < curopc.args[ 1 ] + 4; i++ )
+		printf( "0x%02X ", (unsigned char) mem[ i ] );
+	puts( "" );*/
 }
 
 
@@ -45,11 +50,16 @@ OPCODE( store_hbyte ) {
 }
 OPCODE( store_word ) {
 	* (uint16 *) &mem[ curopc.args[ 0 ] ] = proc.regs[ curopc.args[ 1 ] ] & 0xFFFF;
+
+	/*printf( "store_word(). mem[ 0x%X ] = 0x%02X (really saved 0x%02X '%c')\n", curopc.args[ 0 ], REGARG( 1 ), * (uint16 *) &mem[ curopc.args[ 0 ] ], (unsigned char) mem[ curopc.args[ 0 ] ] );
+	for ( uint32 i = curopc.args[ 0 ]; i < curopc.args[ 0 ] + 2; i++ )
+		printf( "0x%02X ", (unsigned char) mem[ i ] );
+	puts( "" );*/
 }
 OPCODE( store_dword ) {
 	* (uint32 *) &mem[ curopc.args[ 0 ] ] = proc.regs[ curopc.args[ 1 ] ];
 
-	/*printf( "mem[ 0x%X ] = 0x%02X (really saved 0x%02X '%c')\n", curopc.args[ 0 ], REGARG( 1 ), * (uint32 *) &mem[ curopc.args[ 0 ] ], (unsigned char) mem[ curopc.args[ 0 ] ] );
+	/*printf( "store_dword(). mem[ 0x%X ] = 0x%02X (really saved 0x%02X '%c')\n", curopc.args[ 0 ], REGARG( 1 ), * (uint32 *) &mem[ curopc.args[ 0 ] ], (unsigned char) mem[ curopc.args[ 0 ] ] );
 	for ( uint32 i = curopc.args[ 0 ]; i < curopc.args[ 0 ] + 4; i++ )
 		printf( "0x%02X ", (unsigned char) mem[ i ] );
 	puts( "" );*/
@@ -234,7 +244,7 @@ OPCODE( int ) {
 
 OPCODE( int_ret ) {
 	proc.flags = ( proc.sf & ( ~TF ) ) | PreTF;
-	proc.instructionptr = proc.ra;
+	proc.instructionptr = proc.ra + 4;
 }
 
 
@@ -395,19 +405,68 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, MEM_INTERRUPTS_START } );
 	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_START + findInterruptMatrixIndex( except_trace ) * 4, 10 } );
 
+	for ( int i = 0; i < opcodes_matrix_size; i++ )
+		setMemoryArray( MEM_INTERRUPTS_MEM_OPCODENAMES_START + i * 4, getOpcodeData( i )->name, 4 );
+
+	//for ( int i = MEM_INTERRUPTS_MEM_OPCODENAMES_START; i < MEM_INTERRUPTS_MEM_OPCODENAMES_END; i++ )
+	//	putchar( mem[ i ] );
+	//getch();
+
+	setMemoryArray( MEM_INTERRUPTS_MEM_OPCODENAMES_START - 16, "[Trace] 0x\x0", 11 );
+	setMemoryArray( MEM_INTERRUPTS_MEM_OPCODENAMES_START - 5, "    \x0", 5 );
+
 	uint32 savedInstructionPos = proc.protectedModeMemStart;
-	proc.protectedModeMemStart = MEM_INTERRUPTS_START + findInterruptMatrixIndex( except_trace ) * 4;
+	proc.protectedModeMemStart = MEM_INTERRUPTS_START + findInterruptMatrixIndex( except_trace ) * 4 - 8;
 
 	// 256 bytes: 48 opcodes, 16 variables.
 	uint32 interruptMemory = proc.protectedModeMemStart + 48 * 4;
 	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory, 10 } );
 	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 4, 11 } );
-	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 8, 2 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0x123456 } );
+	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 8, 1 } );
+	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 12, 12 } );
 
+	queueInstruction( op_load_word, ( uint32[ 4 ] ){ 10, MEM_KERNELVARS_BIOS_SCREEN } );
+	queueInstruction( op_store_word, ( uint32[ 4 ] ){ interruptMemory + 16, 10 } );
+
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 80 + 54 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Moves cursor (subfunc 4h).
+
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, MEM_INTERRUPTS_MEM_OPCODENAMES_START - 16 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string ("[Trace] ").
+
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, interruptMemory + 8 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 4 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 12, 16 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_printdigit ) } ); // Prints a digit (return address).
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, MEM_INTERRUPTS_MEM_OPCODENAMES_START - 3 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a space.
+
+	queueInstruction( op_load_word, ( uint32[ 4 ] ){ 10, MEM_KERNELVARS_TRACE_CUROPCODE } );
+	queueInstruction( op_shl_const, ( uint32[ 4 ] ){ 10, 10, 2 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, MEM_INTERRUPTS_MEM_OPCODENAMES_START } );
+	queueInstruction( op_add, ( uint32[ 4 ] ){ 10, 10, 11 } );
+
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string ().
+
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, MEM_INTERRUPTS_MEM_OPCODENAMES_START - 5 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (four spaces here).
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a newline.
+
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_getkey ) } ); // Waits for the keystroke.
+
+	queueInstruction( op_load_word, ( uint32[ 4 ] ){ 10, interruptMemory + 16 } );
+	queueInstruction( op_store_word, ( uint32[ 4 ] ){ MEM_KERNELVARS_BIOS_SCREEN, 10 } ); // Reverts X/Y screen coords back.
+
+	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 12, interruptMemory + 12 } );
 	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 10, interruptMemory } );
 	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 11, interruptMemory + 4 } );
-	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 2, interruptMemory + 8 } );
+	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 1, interruptMemory + 8 } );
 	queueInstruction( op_int_ret, ( uint32[ 4 ] ){ 0 } );
 	//queueInstruction( op_call_reg, ( uint32[ 4 ] ){ 0, 1, 0 } );
 
@@ -415,10 +474,8 @@ int main( void ) {
 	proc.protectedModeMemStart = savedInstructionPos;
 
 	// Test program:
-	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 100 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 28 } );
-	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 
 	queueInstruction( op_sub, ( uint32[ 4 ] ){ 10, 10, 11 } );		// 'H'
 	queueInstruction( op_add_const, ( uint32[ 4 ] ){ 11, 11, 77 } );	// 'i'
@@ -436,6 +493,7 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 999 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Moves cursor (subfunc 4h).
+	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0x60000 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
 
@@ -443,11 +501,12 @@ int main( void ) {
 	queueInstruction( op_nop, ( uint32[ 4 ] ){ 0 } );				// Will be skipped;
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 0xABCD } );	// Will be skipped.
 
+	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (subfunc 0h).
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // A newline character (subfunc 2h)
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } ); 	
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 80 * 24 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Moves cursor (subfunc 4h).
 
@@ -470,7 +529,7 @@ int main( void ) {
 	proc.protectedModeMemStart += ( 1024 - proc.protectedModeMemStart ) % 1024;
 	proc.instructionptr = MEM_PROG_KERNEL_START;
 
-	const int MAX_EXIT_DOWNCOUNTER = 100;
+	const int MAX_EXIT_DOWNCOUNTER = 512;
 	int exit_countdown = MAX_EXIT_DOWNCOUNTER;
 	//uint32 last_opcode_id_exitcheck = 0;
 
@@ -497,6 +556,9 @@ int main( void ) {
 			//printf( "arg %i: 0x%04X. curSrcMem 0x%08X >> %i\n", i, curopc.args[ i ], curSrcMem, 32 - curLength );
 		}
 
+		for ( int i = argLengths.argsAmount; i < 4; i++ )
+			curopc.args[ i ] = 0;
+
 		// Debug tracing (seems to be temporal):
 		/*printf( " [Trace 0x%04X: \"%5s ", proc.instructionptr, opcodes_matrix[ (int) curopc.id ].name );
 
@@ -510,8 +572,8 @@ int main( void ) {
 
 		opcodeCall( opcode->address );
 
-		//printf( " [\\Post regs: ra 0x%X; a0..a2 {0x%X, 0x%X, 0x%X}; t0..t2 {0x%X, 0x%X, 0x%X}]", proc.ra, proc.a0, proc.a1, proc.a2, proc.t0, proc.t1, proc.t2 );
-		//printFlags();
+		/*printf( " [\\Post regs: ra 0x%X; a0..a2 {0x%X, 0x%X, 0x%X}; t0..t2 {0x%X, 0x%X, 0x%X}]", proc.ra, proc.a0, proc.a1, proc.a2, proc.t0, proc.t1, proc.t2 );
+		printFlags();*/
 
 		// Trace interrupt call:
 		if ( ( proc.flags & ( TF | EndEmulF ) ) == TF ) {
@@ -521,6 +583,8 @@ int main( void ) {
 
 			for ( int i = 0; i < 4; i++ )
 				* (uint32 *) &mem[ MEM_KERNELVARS_TRACE_OPCARG_START + i * 4 ] = curopc.args[ i ];
+
+			//printf( " [TF. ID %i, uint[ %i ] args type %i.\n", mem[ MEM_KERNELVARS_TRACE_CUROPCODE ], mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSAMOUNT ], mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSTYPE ] );
 
 			curopc.args[ 0 ] = traceExceptionIndex;
 			opcodeCall( op_int );
