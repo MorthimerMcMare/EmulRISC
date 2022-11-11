@@ -89,20 +89,20 @@ typedef void (opcode_pointer)( void );
 #define FINDINT( interruptName ) findInterruptMatrixIndex( interruptName )
 
 #if defined(__WIN32) || defined(__MSDOS__)
-# include <conio.h>
+#  include <conio.h>
 #elif defined( USE_NCURSES )
-# include <ncurses.h>
-# define clrscr() clear()
-# define printf printw
-# define puts(string); printw( "%s\n", (string) );
-# define putchar(pchar) printw( "%c", (char) (pchar) )
-# define LINUX_NCURSES
-# define LINUX_OS
+#  include <ncurses.h>
+#  define clrscr() clear()
+#  define printf printw
+#  define puts(string) printw( "%s\n", (string) )
+#  define putchar(pchar) printw( "%c", (char) (pchar) )
+#  define LINUX_NCURSES
+#  define LINUX_OS
 #else
-# define getch getchar
-# define clrscr() printf( "\033[2J" )
-# define LINUX_DIRECT
-# define LINUX_OS
+#  define getch getchar
+#  define clrscr() printf( "\033[2J" )
+#  define LINUX_DIRECT
+#  define LINUX_OS
 #endif
 
 #ifndef LINUX_NCURSES
@@ -129,7 +129,7 @@ typedef enum {
 	FNF		= 0x0200,	// Infinity value flag [FloatCPU only].
 	FPF		= 0x0400,	// Precision lose flag [FloatCPU only].
 
-	PreTF	= 0x2000,	// TF must be set on the next tic ("iret").
+	PostTF	= 0x2000,
 	RlModeF	= 0x4000,	// Real (root/system) processor mode flag.
 	EndEmulF= 0x8000,	// Exit flag. Maybe will be removed in future.
 

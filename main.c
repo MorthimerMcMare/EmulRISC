@@ -4,7 +4,10 @@
 #include <stdint.h>
 #include <limits.h>
 
+// An option that only makes sense for the Linux; more precisely, direct 
+//terminal or ncurses output:
 //#define USE_NCURSES
+
 
 #include "defines.h"	// Constants, defines, ...
 #include "internal.h"	// Core and memory data.
@@ -30,6 +33,11 @@ OPCODE( load_byte ) {
 }
 OPCODE( load_word ) {
 	REGARG( 0 ) = ( * (uint16 *) &mem[ curopc.args[ 1 ] ] ) + curopc.args[ 2 ];
+
+	/*printf( "load_word(). mem[ 0x%X ] = 0x%02X. Add %i\n", curopc.args[ 1 ], * (uint16 *) &mem[ curopc.args[ 1 ] ], curopc.args[ 2 ] );
+	for ( uint32 i = curopc.args[ 1 ]; i < curopc.args[ 1 ] + 2; i++ )
+		printf( "0x%02X ", (unsigned char) mem[ i ] );
+	puts( "" );*/
 }
 OPCODE( load_dword ) {
 	REGARG( 0 ) = ( * (uint32 *) &mem[ curopc.args[ 1 ] ] ) + curopc.args[ 2 ];
@@ -54,7 +62,8 @@ OPCODE( store_word ) {
 	/*printf( "store_word(). mem[ 0x%X ] = 0x%02X (really saved 0x%02X '%c')\n", curopc.args[ 0 ], REGARG( 1 ), * (uint16 *) &mem[ curopc.args[ 0 ] ], (unsigned char) mem[ curopc.args[ 0 ] ] );
 	for ( uint32 i = curopc.args[ 0 ]; i < curopc.args[ 0 ] + 2; i++ )
 		printf( "0x%02X ", (unsigned char) mem[ i ] );
-	puts( "" );*/
+	puts( "" );
+	getch();*/
 }
 OPCODE( store_dword ) {
 	* (uint32 *) &mem[ curopc.args[ 0 ] ] = proc.regs[ curopc.args[ 1 ] ];
@@ -221,6 +230,7 @@ OPCODE( int ) {
 		// Interrupts are overridden only if address value in the IVT is not equals to zero:
 		if ( interruptCodePtr == 0 && intdata->defaddress ) {
 			intdata->defaddress();
+			proc.flags |= ( proc.sf & TF );
 
 		} else if ( interruptCodePtr != 0 ) {
 			// Save last instruction position:
@@ -243,8 +253,16 @@ OPCODE( int ) {
 } // of OPCODE( int ) {}
 
 OPCODE( int_ret ) {
-	proc.flags = ( proc.sf & ( ~TF ) ) | PreTF;
-	proc.instructionptr = proc.ra + 4;
+	if ( proc.sf & TF )
+		proc.flags = ( proc.sf & ~TF ) | PostTF;
+	else
+		proc.flags = proc.sf;
+
+	proc.instructionptr = proc.ra + RISC_INSTRUCTION_LENGTH;
+}
+
+OPCODE( brkp ) {
+	except_breakpoint();
 }
 
 
@@ -303,7 +321,28 @@ OPCODE( clearflag )	{ proc.flags &= ~( curopc.args[ 0 ] & FLAGS_Storable ); }
 // ====================
 
 void opcodeCall( opcode_pointer opcode ) {
+#if 0
+	// Debug tracing (seems to be temporal):
+	printf( " [Trace 0x%04X: \"%5s ", proc.instructionptr, opcodes_matrix[ (int) curopc.id ].name );
+
+	for ( int i = 0; i < argLengths.argsAmount - 1; i++ )
+		printf( "%5Xh, ", curopc.args[ i ] );
+
+	if ( argLengths.argsAmount > 0 )
+		printf( "%5Xh", curopc.args[ argLengths.argsAmount - 1 ] );
+
+	puts( "\"]" );
+
 	opcode();
+
+	printf( " [\\Post regs: ra 0x%X; a0..a2 {0x%X, 0x%X, 0x%X}; t0..t2 {0x%X, 0x%X, 0x%X}; sf 0x%X]", proc.ra, proc.a0, proc.a1, proc.a2, proc.t0, proc.t1, proc.t2, proc.sf );
+	printFlags();
+
+	//if ( getch() == 'Q' )
+	//	proc.flags |= EndEmulF;
+#else
+	opcode();
+#endif
 }
 
 
@@ -420,13 +459,15 @@ int main( void ) {
 
 	// 256 bytes: 48 opcodes, 16 variables.
 	uint32 interruptMemory = proc.protectedModeMemStart + 48 * 4;
-	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory, 10 } );
-	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 4, 11 } );
-	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 8, 1 } );
+	//queueInstruction( op_brkp, ( uint32[ 4 ] ){ 0 } );
+	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory, 1 } );
+	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 4, 10 } );
+	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 8, 11 } );
 	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 12, 12 } );
+	queueInstruction( op_store_word, ( uint32[ 4 ] ){ interruptMemory + 16, 2 } );
 
-	queueInstruction( op_load_word, ( uint32[ 4 ] ){ 10, MEM_KERNELVARS_BIOS_SCREEN } );
-	queueInstruction( op_store_word, ( uint32[ 4 ] ){ interruptMemory + 16, 10 } );
+	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 10, MEM_KERNELVARS_BIOS_SCREEN } );
+	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 20, 10 } );
 
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 80 + 54 } );
@@ -436,7 +477,7 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string ("[Trace] ").
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, interruptMemory + 8 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, interruptMemory } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 4 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 12, 16 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_printdigit ) } ); // Prints a digit (return address).
@@ -460,13 +501,16 @@ int main( void ) {
 
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_getkey ) } ); // Waits for the keystroke.
 
-	queueInstruction( op_load_word, ( uint32[ 4 ] ){ 10, interruptMemory + 16 } );
-	queueInstruction( op_store_word, ( uint32[ 4 ] ){ MEM_KERNELVARS_BIOS_SCREEN, 10 } ); // Reverts X/Y screen coords back.
+	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 10, interruptMemory + 20 } );
+	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ MEM_KERNELVARS_BIOS_SCREEN, 10 } ); // Reverts X/Y screen coords back.
 
+	queueInstruction( op_load_word, ( uint32[ 4 ] ){ 2, interruptMemory + 16 } );
 	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 12, interruptMemory + 12 } );
-	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 10, interruptMemory } );
-	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 11, interruptMemory + 4 } );
-	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 1, interruptMemory + 8 } );
+	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 11, interruptMemory + 8 } );
+	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 10, interruptMemory + 4 } );
+	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 1, interruptMemory } );
+
+	//queueInstruction( op_brkp, ( uint32[ 4 ] ){ 0 } );
 	queueInstruction( op_int_ret, ( uint32[ 4 ] ){ 0 } );
 	//queueInstruction( op_call_reg, ( uint32[ 4 ] ){ 0, 1, 0 } );
 
@@ -493,11 +537,11 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 999 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Moves cursor (subfunc 4h).
-	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0x60000 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
 
-	queueInstruction( op_jmp_const, ( uint32[ 4 ] ){ 3 } );
+	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
+	queueInstruction( op_jmp_const, ( uint32[ 4 ] ){ 2 } );
 	queueInstruction( op_nop, ( uint32[ 4 ] ){ 0 } );				// Will be skipped;
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 0xABCD } );	// Will be skipped.
 
@@ -529,7 +573,7 @@ int main( void ) {
 	proc.protectedModeMemStart += ( 1024 - proc.protectedModeMemStart ) % 1024;
 	proc.instructionptr = MEM_PROG_KERNEL_START;
 
-	const int MAX_EXIT_DOWNCOUNTER = 512;
+	const int MAX_EXIT_DOWNCOUNTER = 386;
 	int exit_countdown = MAX_EXIT_DOWNCOUNTER;
 	//uint32 last_opcode_id_exitcheck = 0;
 
@@ -546,7 +590,7 @@ int main( void ) {
 		opcode_structtype_length argLengths = opcode_structtype_lengths[ opcodes_matrix[ (int) curopc.id ].structType ];
 		uint32 curSrcMem = ( curopc.srcmem.t32 << 6 );
 
-		//printf( "OpIdx. curSrcMem 0x%08X\n", curSrcMem );
+		//printf( "OpcIdx. curSrcMem 0x%08X (at 0x%04X)\n", curSrcMem, proc.instructionptr );
 
 		for ( int i = 0; i < argLengths.argsAmount; i++ ) {
 			uint_fast8_t curLength = argLengths.lengths[ i ];
@@ -559,21 +603,7 @@ int main( void ) {
 		for ( int i = argLengths.argsAmount; i < 4; i++ )
 			curopc.args[ i ] = 0;
 
-		// Debug tracing (seems to be temporal):
-		/*printf( " [Trace 0x%04X: \"%5s ", proc.instructionptr, opcodes_matrix[ (int) curopc.id ].name );
-
-		for ( int i = 0; i < argLengths.argsAmount - 1; i++ )
-			printf( "%5Xh, ", curopc.args[ i ] );
-
-		if ( argLengths.argsAmount > 0 )
-			printf( "%5Xh", curopc.args[ argLengths.argsAmount - 1 ] );
-
-		puts( "\"]" );*/
-
 		opcodeCall( opcode->address );
-
-		/*printf( " [\\Post regs: ra 0x%X; a0..a2 {0x%X, 0x%X, 0x%X}; t0..t2 {0x%X, 0x%X, 0x%X}]", proc.ra, proc.a0, proc.a1, proc.a2, proc.t0, proc.t1, proc.t2 );
-		printFlags();*/
 
 		// Trace interrupt call:
 		if ( ( proc.flags & ( TF | EndEmulF ) ) == TF ) {
@@ -586,11 +616,15 @@ int main( void ) {
 
 			//printf( " [TF. ID %i, uint[ %i ] args type %i.\n", mem[ MEM_KERNELVARS_TRACE_CUROPCODE ], mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSAMOUNT ], mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSTYPE ] );
 
+			int tmp = curopc.args[ 0 ];
 			curopc.args[ 0 ] = traceExceptionIndex;
 			opcodeCall( op_int );
-		} else if ( proc.flags & PreTF ) {
-			proc.flags = ( proc.flags | TF ) & ~PreTF;
+			curopc.args[ 0 ] = tmp;
 		}
+
+		if ( proc.flags & PostTF )
+			proc.flags = ( proc.flags & ~PostTF ) | TF;
+
 
 		// Videopage handling:
 		if ( ( proc.flags & VUF ) && BIOS_OUTPUT_VIDEOPAGE == ( ( *screenvar & 0xFF0000 ) >> 16 ) ) {

@@ -65,6 +65,8 @@ OPCODE( clearflag );
 OPCODE( int );
 OPCODE( int_ret );
 
+OPCODE( brkp );
+
 
 typedef struct {
 	void ( *address )( void );
@@ -133,6 +135,7 @@ opcode_data opcodes_matrix[ 64 ] = {
 	{ op_clearflag,		OPST_ByteConst, "clf" },
 	{ op_int_ret,		OPST_None, "iret" },
 	{ op_nop,			OPST_None,	"nop" },
+	{ op_brkp,			OPST_None, "brkp" },
 };
 
 
