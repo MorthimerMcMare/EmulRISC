@@ -6,7 +6,7 @@
 
 // An option that only makes sense for the Linux; more precisely, direct 
 //terminal or ncurses output:
-#define USE_NCURSES
+//#define USE_NCURSES
 
 
 #include "defines.h"	// Constants, defines, ...
@@ -581,11 +581,12 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0x60000 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
 
-	queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
+	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_jmp_const, ( uint32[ 4 ] ){ 2 } );
 	queueInstruction( op_nop, ( uint32[ 4 ] ){ 0 } );				// Will be skipped;
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 0xABCD } );	// Will be skipped.
 
+	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (subfunc 0h).
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // A newline character (subfunc 2h).
@@ -598,8 +599,7 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 12, 10 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_printdigit ) } );
 
-	queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } ); 	
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 80 * 24 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Moves cursor (subfunc 4h).
 
