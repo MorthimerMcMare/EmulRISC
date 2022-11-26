@@ -22,8 +22,8 @@ uint32 *screenvar = (uint32 *) &mem[ MEM_KERNELVARS_BIOS_SCREEN ];
 	r4:		tp,		Thread Pointer [unused in this emulator];
 	r5-7:	t0-2,	Temporal registers (block 1);
 	r8-9:	s0-1,	Save-requiring registers (block 1);
-	r10-11:	a0-1,	Arguments registers/return values (block 1);
-	r12-17:	a2-7,	Arguments registers (block 2);
+	r10-11:	a0-5,	Arguments registers (block 1);
+	r12-17:	a6-7,	Arguments registers/return values (block 2);
 	r18-27:	s2-11,	Save-requiring registers (block 2);
 	r28-31:	t3-6,	Temporal registers (block 2).
 */
@@ -47,6 +47,8 @@ struct _processor {
 		};
 	};
 
+	float fregs[ MAX_FLOAT_REGS ];
+
 	EFlags flags;
 
 	uint32 protectedModeMemStart;
@@ -54,12 +56,6 @@ struct _processor {
 	uint32 tlb; // uint32 *TranslationLookasideBuffer[ 64 ]
 	uint32 bva; // Bad virtual address.
 } proc;
-
-
-typedef struct _float_coprocessor {
-	float regs[ MAX_FLOAT_REGS ];
- 	EFlags flags;
-} floatproc;
 
 
 opcode_mem_struct curopc = { 0 };

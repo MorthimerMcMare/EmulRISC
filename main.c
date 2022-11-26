@@ -139,6 +139,41 @@ OPCODE( mul_u ) {
 	checkZeroFlag( result );
 }
 
+OPCODE( div ) {
+	proc.flags &= ~( ZF | SF );
+
+	if ( REGARG( 1 ) == 0 ) {
+		proc.ra = proc.instructionptr;
+		curopc.args[ 0 ] = findInterruptMatrixIndex( except_zero_division );
+		opcodeCall( op_int );
+	} else {
+		int64 result = (int32) REGARG( 0 ) / (int32) REGARG( 1 );
+
+		* (int32 *) &REGARG( 2 ) = result & 0xFFFFFFFF;
+		* (int32 *) &REGARG( 3 ) = ( result >> 32 ) & 0xFFFFFFFF;
+
+		if ( result == 0 )
+			proc.flags |= ZF;
+		else if ( result < 0 )
+			proc.flags |= SF;
+	}
+}
+
+OPCODE( div_u ) {
+	if ( REGARG( 1 ) == 0 ) {
+		proc.ra = proc.instructionptr;
+		curopc.args[ 0 ] = findInterruptMatrixIndex( except_zero_division );
+		opcodeCall( op_int );
+	} else {
+		uint64 result = (uint32) REGARG( 0 ) / (uint32) REGARG( 1 );
+
+		REGARG( 2 ) = result & 0xFFFFFFFF;
+		REGARG( 3 ) = ( result >> 32 ) & 0xFFFFFFFF;
+
+		checkZeroFlag( result );
+	}
+}
+
 
 OPCODE( and ) {
 	REGARG( 0 ) = REGARG( 1 ) & REGARG( 2 );
@@ -294,6 +329,11 @@ OPCODE( jc_reg ) 	{ if ( proc.flags & CF ) proc.instructionptr = REGARG( 0 ); }
 OPCODE( jnc_const )	{ if ( !( proc.flags & CF ) ) proc.instructionptr = curopc.args[ 0 ]; }
 OPCODE( jnc_reg ) 	{ if ( !( proc.flags & CF ) ) proc.instructionptr = REGARG( 0 ); }*/
 
+OPCODE( jf_near ) { if ( proc.flags & REGARG( 0 ) ) proc.instructionptr += ( (int16) curopc.args[ 1 ] ) * RISC_INSTRUCTION_LENGTH; }
+OPCODE( jnf_near ) { if ( !( proc.flags & REGARG( 0 ) ) ) proc.instructionptr += ( (int16) curopc.args[ 1 ] ) * RISC_INSTRUCTION_LENGTH; }
+OPCODE( jf_far ) { if ( proc.flags & REGARG( 0 ) ) proc.instructionptr = REGARG( 1 ); }
+OPCODE( jnf_far ) { if ( !( proc.flags & REGARG( 0 ) ) ) proc.instructionptr = REGARG( 1 ); }
+
 // printf( "op_beq_near(). [r0] %i == [r1] %i? new pos 0x%04X\n", REGARG( 0 ), REGARG( 1 ), proc.instructionptr + (int) curopc.args[ 2 ] * RISC_INSTRUCTION_LENGTH );
 OPCODE( beq_near ) { if ( REGARG( 0 ) == REGARG( 1 ) ) proc.instructionptr += ( (int16) curopc.args[ 2 ] ) * RISC_INSTRUCTION_LENGTH; }
 OPCODE( bne_near ) { if ( REGARG( 0 ) != REGARG( 1 ) ) proc.instructionptr += ( (int16) curopc.args[ 2 ] ) * RISC_INSTRUCTION_LENGTH; }
@@ -309,6 +349,7 @@ OPCODE( bltu_near ) { if ( (uint32) REGARG( 0 ) <  (uint32) REGARG( 1 ) ) proc.i
 OPCODE( bgeu_near ) { if ( (uint32) REGARG( 0 ) >= (uint32) REGARG( 1 ) ) proc.instructionptr += ( (int16) curopc.args[ 2 ] ) * RISC_INSTRUCTION_LENGTH; }
 OPCODE( bltu_far ) { if ( (uint32) REGARG( 0 ) <  (uint32) REGARG( 1 ) ) proc.instructionptr = REGARG( 2 ); }
 OPCODE( bgeu_far ) { if ( (uint32) REGARG( 0 ) >= (uint32) REGARG( 1 ) ) proc.instructionptr = REGARG( 2 ); }
+
 
 OPCODE( setflag )	{ proc.flags |= ( curopc.args[ 0 ] & FLAGS_Storable ); }
 OPCODE( clearflag )	{ proc.flags &= ~( curopc.args[ 0 ] & FLAGS_Storable ); }
@@ -491,7 +532,7 @@ int main( void ) {
 	queueInstruction( op_add, ( uint32[ 4 ] ){ 10, 10, 11 } );
 
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
-	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string ().
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (opcode name).
 
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, MEM_INTERRUPTS_MEM_OPCODENAMES_START - 5 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
@@ -548,7 +589,15 @@ int main( void ) {
 	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (subfunc 0h).
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
-	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // A newline character (subfunc 2h)
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // A newline character (subfunc 2h).
+
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 6, 1000 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 5, 4 } );
+	queueInstruction( op_div, ( uint32[ 4 ] ){ 6, 5, 5, 0 } );
+	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ 0x60000, 5 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0x60000 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 12, 10 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_printdigit ) } );
 
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } ); 	
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 80 * 24 } );

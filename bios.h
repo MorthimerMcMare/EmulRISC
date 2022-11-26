@@ -51,7 +51,7 @@ EXCEPTIONOPCODE( breakpoint ) {
 		printf( "[REAL]" );
 
 	printf( "),\ntmp[0..6]: 0x%04X, 0x%04X, 0x%04X; 0x%04X, 0x%04X, 0x%04X, 0x%04X\n", proc.t0, proc.t1, proc.t2, proc.t3, proc.t4, proc.t5, proc.t6 );
-	printf( "arg[0..7]: 0x%04X, 0x%04X; 0x%04X, 0x%04X, 0x%04X, 0x%04X, 0x%04X, 0x%04X\n", proc.a0, proc.a1, proc.a2, proc.a3, proc.t4, proc.a5, proc.a6, proc.a7 );
+	printf( "arg[0..7]: 0x%04X, 0x%04X, 0x%04X, 0x%04X, 0x%04X, 0x%04X; 0x%04X, 0x%04X\n", proc.a0, proc.a1, proc.a2, proc.a3, proc.a4, proc.a5, proc.a6, proc.a7 );
 
 	getch();
 }
@@ -140,9 +140,13 @@ void internalPrintChar( char outchar ) {
 			break;
 		case BIOS_OUTPUT_VIDEOPAGE:
 		case BIOS_OUTPUT_VIDEOPAGE_FREEZED:
-			if ( ( mem[ MEM_KERNELVARS_BIOS_SCREEN ] & 0xFFFF ) < MEM_VIDEOPAGE_TEXTAMOUNT ) {
-				mem[ MEM_VIDEOPAGE_START + ( mem[ MEM_KERNELVARS_BIOS_SCREEN ] & 0xFFFF ) ] = outchar;
-				mem[ MEM_KERNELVARS_BIOS_SCREEN ]++;
+			if ( ( *screenvar & 0xFFFF ) < MEM_VIDEOPAGE_TEXTAMOUNT ) {
+				if ( outchar != '\n' ) {
+					mem[ MEM_VIDEOPAGE_START + ( *screenvar & 0xFFFF ) ] = outchar;
+					(*screenvar)++;
+				} else {
+					* (uint16 *) screenvar = (uint16) ( ( *screenvar & 0xFFFF ) / 80 + 1 ) * 80;
+				}
 
 				if ( outputMode == BIOS_OUTPUT_VIDEOPAGE )
 					proc.flags |= VUF;
@@ -158,8 +162,8 @@ void internalPrintChar( char outchar ) {
 // Prints a string to the stdout.
 //   a0: index of the first memory char cell;
 //   a1: print type. 1 == char, 2 == '\n' (ignoring a0), other == null-terminated string.
-//   return a0: finish memory pointer (next from last '\x0');
-//   return a1: real amount of symbols (excluding last '\x0').
+//   return a6: finish memory pointer (next from last '\x0');
+//   return a7: real amount of symbols (excluding last '\x0').
 BIOSOPCODE( print ) {
 	switch ( proc.a1 ) {
 		case 1:
@@ -169,8 +173,8 @@ BIOSOPCODE( print ) {
 			internalPrintChar( '\n' );
 			break;
 		default:
-			proc.a1 = internalPrintString( &mem[ proc.a0 ] );
-			proc.a0 = proc.a0 + proc.a1 + 1;
+			proc.a6 = internalPrintString( &mem[ proc.a0 ] );
+			proc.a7 = proc.a0 + proc.a1 + 1;
 			break;
 	}
 	/*uint32 maxchars = proc.a1;
@@ -199,7 +203,7 @@ static const char *DIGITS = "0123456789ABCDEFGHIKLMNOPQRSTVXYZ";
 BIOSOPCODE( printdigit ) {
 	int32 digit = ( * (int32 *) &mem[ proc.a0 ] );// & ( ( 1 << proc.a1 ) - 1 );
 
-	//printf( "bios_printdigit(). %i\n", digit );
+	//printf( "bios_printdigit(). %i\n", digit ); getch();
 
 	unsigned char fastprinted = 1;
 	char to[ 65 ] = { 0 };

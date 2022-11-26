@@ -10,7 +10,7 @@
 
 
 // Forward opcodes declaration:
-OPCODE( nop );
+OPCODE( int );
 
 OPCODE( mov_const );
 OPCODE( load_byte );
@@ -27,6 +27,8 @@ OPCODE( sub );
 OPCODE( sub_const );
 OPCODE( mul );
 OPCODE( mul_u );
+OPCODE( div );
+OPCODE( div_u );
 
 OPCODE( and );
 OPCODE( and_const );
@@ -44,6 +46,11 @@ OPCODE( call_const );
 OPCODE( call_reg );
 
 OPCODE( jmp_const );
+OPCODE( jmp_reg );
+OPCODE( jf_near );
+OPCODE( jnf_near );
+OPCODE( jf_far );
+OPCODE( jnf_far );
 
 OPCODE( beq_near );
 OPCODE( bne_near );
@@ -62,10 +69,11 @@ OPCODE( bgeu_far );
 
 OPCODE( setflag );
 OPCODE( clearflag );
-OPCODE( int );
 OPCODE( int_ret );
-
+OPCODE( nop );
 OPCODE( brkp );
+
+
 
 
 typedef struct {
@@ -91,7 +99,8 @@ opcode_data opcodes_matrix[ 64 ] = {
 	{ op_sub,			OPST_3RegC,	"sub" },
 	{ op_mul,			OPST_4Reg,	"mul" },
 	{ op_mul_u,			OPST_4Reg,	"mulu" },
-	//{ op_div,			OPST_4Reg,	"div" },
+	{ op_div,			OPST_4Reg,	"div" },
+	{ op_div_u,			OPST_4Reg,	"divu" },
 
 	{ op_and,			OPST_3Reg,	"and" },
 	{ op_and_const,		OPST_2RegC,	"andv" },
@@ -109,30 +118,28 @@ opcode_data opcodes_matrix[ 64 ] = {
 	{ op_call_reg,		OPST_2RegC, "call" },
 
 	{ op_jmp_const,		OPST_WordConst, "jmp" },
-	/*{ op_jz_const,		OPST_MaxConst, "jz" },
-	{ op_jnz_const,		OPST_MaxConst, "jnz" },
-	{ op_js_const,		OPST_WordConst, "js" },
-	{ op_jns_const,		OPST_WordConst, "jns" },
-	{ op_jo_const,		OPST_WordConst, "jo" },
-	{ op_jno_const,		OPST_WordConst, "jno" },
-	{ op_jc_const,		OPST_WordConst, "jc" },
-	{ op_jnc_const,		OPST_WordConst, "jnc" },*/
+	{ op_jmp_reg,		OPST_1RegC, "jmpr" },
+	{ op_jf_near,		OPST_1RegC, "jx" },
+	{ op_jnf_near,		OPST_1RegC, "jnx" },
+	{ op_jf_far,		OPST_2Reg,  "jxf" },
+	{ op_jnf_far,		OPST_2Reg,  "jnxf" },
 
 	{ op_beq_near,		OPST_2RegC, "beq" },
 	{ op_bne_near,		OPST_2RegC, "bne" },
-	{ op_beq_far,		OPST_3Reg, "beqf" },
-	{ op_bne_far,		OPST_3Reg, "bnef" },
+	{ op_beq_far,		OPST_3Reg,  "beqf" },
+	{ op_bne_far,		OPST_3Reg,  "bnef" },
 	{ op_blt_near,		OPST_2RegC, "blt" },
 	{ op_bge_near,		OPST_2RegC, "bge" },
-	{ op_blt_far,		OPST_3Reg, "bltf" },
-	{ op_bge_far,		OPST_3Reg, "bgef" },
+	{ op_blt_far,		OPST_3Reg,  "bltf" },
+	{ op_bge_far,		OPST_3Reg,  "bgef" },
 	{ op_bltu_near,		OPST_2RegC, "bltu" },
 	{ op_bgeu_near,		OPST_2RegC, "bgeu" },
-	{ op_bltu_far,		OPST_3Reg, "bltuf" },
-	{ op_bgeu_far,		OPST_3Reg, "bgeuf" },
+	{ op_bltu_far,		OPST_3Reg,  "bltuf" },
+	{ op_bgeu_far,		OPST_3Reg,  "bgeuf" },
 
 	{ op_setflag,		OPST_ByteConst, "stf" },
 	{ op_clearflag,		OPST_ByteConst, "clf" },
+
 	{ op_int_ret,		OPST_None, "iret" },
 	{ op_nop,			OPST_None,	"nop" },
 	{ op_brkp,			OPST_None, "brkp" },
@@ -190,7 +197,7 @@ typedef struct {
 	EInterruptType type;
 } interrupt_data;
 
-interrupt_data interrupts_matrix[ 255 ] = {
+interrupt_data interrupts_matrix[ MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_AMOUNT + MEM_INTERRUPT_VECTOR_TABLE_BIOS_AMOUNT ] = {
 	{ except_end_emulation,		INTT_Exception | INTT_Unmaskable },
 	{ except_zero_division,		INTT_Exception | INTT_Unmaskable },
 	{ except_trace,				INTT_Exception | INTT_Unmaskable },
