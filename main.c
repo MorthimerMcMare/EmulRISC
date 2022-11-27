@@ -140,7 +140,7 @@ void setMemoryString( uint32 address, char *source ) {
 
 int main( void ) {
 	proc.protectedModeMemStart = MEM_PROG_KERNEL_START;
-	proc.flags = IF;
+	proc.flags = IF | RlModeF;
 
 #ifdef LINUX_NCURSES
 	initscr();
@@ -223,6 +223,8 @@ int main( void ) {
 
 
 	proc.protectedModeMemStart = savedInstructionPos;
+
+	queueInstruction( op_clearflag, ( uint32[ 4 ] ){ RlModeF } );
 
 	// Test program:
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 100 } );

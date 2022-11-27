@@ -59,7 +59,7 @@
 
 // Virtual kernel mode memory:
 
-#define MEM_PROG_KERNEL_START (1024 * 256)
+#define MEM_PROG_KERNEL_START (1024 * 128) /* (1024 * 256) */
 
 // Videopage:
 #define MEM_KERNEL_END (MEM_VIDEOPAGE_START - 1)
@@ -70,7 +70,7 @@
 
 // Virtual user memory:
 
-#define MEM_USER_START (1024 * 1024 * 32)
+#define MEM_USER_START (1024 * 256) /* (1024 * 1024 * 32) */
 #define MEM_USER_END MAX_MEM
 
 
@@ -128,12 +128,12 @@ typedef enum {
 	FDDF	= 0x0100,	// Double-data flag [FloatCPU only].
 	FNF		= 0x0200,	// Infinity value flag [FloatCPU only].
 	FPF		= 0x0400,	// Precision lose flag [FloatCPU only].
+	RlModeF	= 0x0800,	// Real (root/system) processor mode flag.
 
-	PostTF	= 0x2000,
-	RlModeF	= 0x4000,	// Real (root/system) processor mode flag.
+	PostTF	= 0x4000,
 	EndEmulF= 0x8000,	// Exit flag. Maybe will be removed in future.
 
-	FLAGS_Storable = ZF | SF | CF | OF | IF | TF | FDDF | FNF | FPF // They will be handled via "iret" and same opcodes.
+	FLAGS_Storable = ZF | SF | CF | OF | IF | TF | FDDF | FNF | FPF | RlModeF // They will be handled via "iret" and same opcodes.
 } EFlags;
 
 #define IF_REAL_MODE if ( proc.flags & RlModeF )

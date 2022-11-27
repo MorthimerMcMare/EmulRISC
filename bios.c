@@ -66,6 +66,11 @@ EXCEPTIONOPCODE( invalid_interrupt ) {
 	proc.flags |= EndEmulF;
 }
 
+EXCEPTIONOPCODE( not_real_mode ) {
+	printf( "Cannot access memory cell 0x%08X not in real processor mode.\n", proc.a0 );
+	proc.flags |= EndEmulF;
+}
+
 EXCEPTIONOPCODE( printscreen ) {}
 EXCEPTIONOPCODE( irq0 ) {}
 EXCEPTIONOPCODE( irq1 ) {}

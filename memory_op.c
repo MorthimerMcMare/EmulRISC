@@ -3,14 +3,25 @@
 
 /* Memory control opcodes: */
 
+#define INITMEMOPCODE(memaddr) uint32 addr = (memaddr);\
+if ( !( proc.flags & RlModeF ) && (addr) <= MEM_KERNEL_END ) {\
+	int tmp = proc.a0;\
+	proc.a0 = addr;\
+	curopc.args[ 0 ] = findInterruptMatrixIndex( except_not_real_mode );\
+	op_int();\
+	proc.a0 = tmp;\
+} else
+
 OPCODE( mov_const ) {
 	REGARG( 0 ) = curopc.args[ 1 ];
 }
 OPCODE( load_byte ) {
-	REGARG( 0 ) = (unsigned char) ( mem[ curopc.args[ 1 ] ] + curopc.args[ 2 ] );
+	INITMEMOPCODE( curopc.args[ 1 ] )
+		REGARG( 0 ) = (unsigned char) ( mem[ addr ] + curopc.args[ 2 ] );
 }
 OPCODE( load_word ) {
-	REGARG( 0 ) = ( * (uint16 *) &mem[ curopc.args[ 1 ] ] ) + curopc.args[ 2 ];
+	INITMEMOPCODE( curopc.args[ 1 ] )
+		REGARG( 0 ) = ( * (uint16 *) &mem[ addr ] ) + curopc.args[ 2 ];
 
 	/*printf( "load_word(). mem[ 0x%X ] = 0x%02X. Add %i\n", curopc.args[ 1 ], * (uint16 *) &mem[ curopc.args[ 1 ] ], curopc.args[ 2 ] );
 	for ( uint32 i = curopc.args[ 1 ]; i < curopc.args[ 1 ] + 2; i++ )
@@ -18,7 +29,8 @@ OPCODE( load_word ) {
 	puts( "" );*/
 }
 OPCODE( load_dword ) {
-	REGARG( 0 ) = ( * (uint32 *) &mem[ curopc.args[ 1 ] ] ) + curopc.args[ 2 ];
+	INITMEMOPCODE( curopc.args[ 1 ] )
+		REGARG( 0 ) = ( * (uint32 *) &mem[ addr ] ) + curopc.args[ 2 ];
 
 	/*printf( "load_dword(). mem[ 0x%X ] = 0x%02X. Add %i\n", curopc.args[ 1 ], * (uint32 *) &mem[ curopc.args[ 1 ] ], curopc.args[ 2 ] );
 	for ( uint32 i = curopc.args[ 1 ]; i < curopc.args[ 1 ] + 4; i++ )
@@ -28,14 +40,17 @@ OPCODE( load_dword ) {
 
 
 OPCODE( store_lbyte ) {
-	mem[ curopc.args[ 0 ] ] = REGARG( 1 ) & 0xFF;
+	INITMEMOPCODE( curopc.args[ 0 ] )
+		mem[ addr ] = REGARG( 1 ) & 0xFF;
 	//printf( "mem[ 0x%X ] = 0x%02X (really saved 0x%02X '%c')\n", curopc.args[ 0 ], REGARG( 1 ), (char) mem[ curopc.args[ 0 ] ], (char) mem[ curopc.args[ 0 ] ] );
 }
 OPCODE( store_hbyte ) {
-	mem[ curopc.args[ 0 ] ] = ( proc.regs[ curopc.args[ 1 ] ] >> 8 ) & 0xFF;
+	INITMEMOPCODE( curopc.args[ 0 ] )
+		mem[ addr ] = ( REGARG( 1 ) >> 8 ) & 0xFF;
 }
 OPCODE( store_word ) {
-	* (uint16 *) &mem[ curopc.args[ 0 ] ] = proc.regs[ curopc.args[ 1 ] ] & 0xFFFF;
+	INITMEMOPCODE( curopc.args[ 0 ] )
+		* (uint16 *) &mem[ addr ] = REGARG( 1 ) & 0xFFFF;
 
 	/*printf( "store_word(). mem[ 0x%X ] = 0x%02X (really saved 0x%02X '%c')\n", curopc.args[ 0 ], REGARG( 1 ), * (uint16 *) &mem[ curopc.args[ 0 ] ], (unsigned char) mem[ curopc.args[ 0 ] ] );
 	for ( uint32 i = curopc.args[ 0 ]; i < curopc.args[ 0 ] + 2; i++ )
@@ -44,7 +59,8 @@ OPCODE( store_word ) {
 	getch();*/
 }
 OPCODE( store_dword ) {
-	* (uint32 *) &mem[ curopc.args[ 0 ] ] = proc.regs[ curopc.args[ 1 ] ];
+	INITMEMOPCODE( curopc.args[ 0 ] )
+		* (uint32 *) &mem[ addr ] = REGARG( 1 );
 
 	/*printf( "store_dword(). mem[ 0x%X ] = 0x%02X (really saved 0x%02X '%c')\n", curopc.args[ 0 ], REGARG( 1 ), * (uint32 *) &mem[ curopc.args[ 0 ] ], (unsigned char) mem[ curopc.args[ 0 ] ] );
 	for ( uint32 i = curopc.args[ 0 ]; i < curopc.args[ 0 ] + 4; i++ )

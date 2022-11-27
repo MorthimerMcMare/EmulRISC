@@ -137,8 +137,8 @@ opcode_data opcodes_matrix[ 64 ] = {
 	{ op_bltu_far,		OPST_3Reg,  "bltuf" },
 	{ op_bgeu_far,		OPST_3Reg,  "bgeuf" },
 
-	{ op_setflag,		OPST_ByteConst, "stf" },
-	{ op_clearflag,		OPST_ByteConst, "clf" },
+	{ op_setflag,		OPST_MaxConst, "stf" },
+	{ op_clearflag,		OPST_MaxConst, "clf" },
 
 	{ op_int_ret,		OPST_None, "iret" },
 	{ op_nop,			OPST_None,	"nop" },
@@ -176,6 +176,7 @@ EXCEPTIONOPCODE( trace );
 EXCEPTIONOPCODE( breakpoint );
 EXCEPTIONOPCODE( invalid_opcode );
 EXCEPTIONOPCODE( invalid_interrupt );
+EXCEPTIONOPCODE( not_real_mode );
 EXCEPTIONOPCODE( printscreen );
 EXCEPTIONOPCODE( irq0 );
 EXCEPTIONOPCODE( irq1 );
@@ -204,16 +205,16 @@ interrupt_data interrupts_matrix[ MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_AMOUNT +
 	{ except_breakpoint,		INTT_Exception | INTT_Unmaskable },
 	{ except_invalid_opcode,	INTT_Exception | INTT_Unmaskable },
 	{ except_invalid_interrupt,	INTT_Exception | INTT_Unmaskable },
+	{ except_not_real_mode,		INTT_Exception | INTT_Unmaskable },
 	{ except_printscreen,		INTT_Exception },
-	{ except_irq0,				INTT_IRQ | INTT_Unmaskable }, // System timer (potential. Not released yet).
-	{ except_irq1, 				INTT_IRQ }, // 0x08
+	{ except_irq0,				INTT_IRQ }, // 0x08
+	{ except_irq1, 				INTT_IRQ },
 	{ except_irq2, 				INTT_IRQ },
 	{ except_irq3, 				INTT_IRQ },
 	{ except_irq4, 				INTT_IRQ },
 	{ except_irq5, 				INTT_IRQ },
 	{ except_irq6, 				INTT_IRQ },
 	{ except_irq7, 				INTT_IRQ },
-	{ NULL, 0 },
 	{ bios_videomemory,			INTT_BIOS }, // 0x10
 	{ bios_print,				INTT_BIOS },
 	{ bios_printdigit,			INTT_BIOS },
