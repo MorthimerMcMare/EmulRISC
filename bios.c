@@ -67,7 +67,7 @@ EXCEPTIONOPCODE( invalid_interrupt ) {
 }
 
 EXCEPTIONOPCODE( not_real_mode ) {
-	printf( "Cannot access memory cell 0x%08X not in real processor mode.\n", proc.a0 );
+	printf( "Memory cell 0x%08X access denied: not in real mode (pc 0x%08X; rlmem ends at 0x%06X).\n", proc.a0, proc.instructionptr, MEM_KERNEL_END );
 	proc.flags |= EndEmulF;
 }
 

@@ -32,11 +32,11 @@ void opcodeCall( opcode_pointer opcode ) {
 	// Debug tracing (seems to be temporal):
 	printf( " [Trace 0x%04X: \"%5s ", proc.instructionptr, opcodes_matrix[ (int) curopc.id ].name );
 
-	for ( int i = 0; i < argLengths.argsAmount - 1; i++ )
-		printf( "%5Xh, ", curopc.args[ i ] );
+	//for ( int i = 0; i < argLengths.argsAmount - 1; i++ )
+	//	printf( "%5Xh, ", curopc.args[ i ] );
 
-	if ( argLengths.argsAmount > 0 )
-		printf( "%5Xh", curopc.args[ argLengths.argsAmount - 1 ] );
+	//if ( argLengths.argsAmount > 0 )
+	//	printf( "%5Xh", curopc.args[ argLengths.argsAmount - 1 ] );
 
 	puts( "\"]" );
 
@@ -224,7 +224,7 @@ int main( void ) {
 
 	proc.protectedModeMemStart = savedInstructionPos;
 
-	queueInstruction( op_clearflag, ( uint32[ 4 ] ){ RlModeF } );
+	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ RlModeF } );
 
 	// Test program:
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 100 } );
@@ -298,45 +298,58 @@ int main( void ) {
 	uint32 prevInstrutionPtr = proc.instructionptr;
 
 	while ( !( proc.flags & EndEmulF ) ) {
-		// Parsing:
-		curopc.srcmem.t32 = * (uint32 *) &mem[ proc.instructionptr ];
-		curopc.id = ( curopc.srcmem.t32 >> 26 );
+		if ( proc.instructionptr >= MAX_MEM ) {
+			printf( "main(). Instruction pointer is out-of-bounds (0x%08X, max mem 0x%08X).\n", proc.instructionptr, MAX_MEM );
+			proc.flags |= EndEmulF;
 
-		opcode_data *opcode = getOpcodeData( curopc.id );
+		} else if ( !( proc.flags & RlModeF ) && proc.instructionptr <= MEM_KERNEL_END ) {
+			int tmp = proc.a0;
+			proc.a0 = proc.instructionptr;
+			curopc.args[ 0 ] = findInterruptMatrixIndex( except_not_real_mode );
+			op_int();
+			proc.a0 = tmp;
 
-		opcode_structtype_length argLengths = opcode_structtype_lengths[ opcodes_matrix[ (int) curopc.id ].structType ];
-		uint32 curSrcMem = ( curopc.srcmem.t32 << 6 );
+		} else {
+			// Parsing:
+			curopc.srcmem.t32 = * (uint32 *) &mem[ proc.instructionptr ];
+			curopc.id = ( curopc.srcmem.t32 >> 26 );
 
-		//printf( "OpcIdx. curSrcMem 0x%08X (at 0x%04X)\n", curSrcMem, proc.instructionptr );
+			opcode_data *opcode = getOpcodeData( curopc.id );
 
-		for ( int i = 0; i < argLengths.argsAmount; i++ ) {
-			uint_fast8_t curLength = argLengths.lengths[ i ];
+			opcode_structtype_length argLengths = opcode_structtype_lengths[ opcodes_matrix[ (int) curopc.id ].structType ];
+			uint32 curSrcMem = ( curopc.srcmem.t32 << 6 );
 
-			curopc.args[ i ] = ( curSrcMem >> ( 32 - curLength ) );
-			curSrcMem = ( curSrcMem << curLength );
-			//printf( "arg %i: 0x%04X. curSrcMem 0x%08X >> %i\n", i, curopc.args[ i ], curSrcMem, 32 - curLength );
-		}
+			//printf( "OpcIdx. curSrcMem 0x%08X (at 0x%04X)\n", curSrcMem, proc.instructionptr );
 
-		for ( int i = argLengths.argsAmount; i < 4; i++ )
-			curopc.args[ i ] = 0;
+			for ( int i = 0; i < argLengths.argsAmount; i++ ) {
+				uint_fast8_t curLength = argLengths.lengths[ i ];
 
-		opcodeCall( opcode->address );
+				curopc.args[ i ] = ( curSrcMem >> ( 32 - curLength ) );
+				curSrcMem = ( curSrcMem << curLength );
+				//printf( "arg %i: 0x%04X. curSrcMem 0x%08X >> %i\n", i, curopc.args[ i ], curSrcMem, 32 - curLength );
+			}
 
-		// Trace interrupt call:
-		if ( ( proc.flags & ( TF | EndEmulF ) ) == TF ) {
-			mem[ MEM_KERNELVARS_TRACE_CUROPCODE ] = curopc.id;
-			mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSAMOUNT ] = argLengths.argsAmount;
-			mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSTYPE ] = opcodes_matrix[ (int) curopc.id ].structType;
+			for ( int i = argLengths.argsAmount; i < 4; i++ )
+				curopc.args[ i ] = 0;
 
-			for ( int i = 0; i < 4; i++ )
-				* (uint32 *) &mem[ MEM_KERNELVARS_TRACE_OPCARG_START + i * 4 ] = curopc.args[ i ];
+			opcodeCall( opcode->address );
 
-			//printf( " [TF. ID %i, uint[ %i ] args type %i.\n", mem[ MEM_KERNELVARS_TRACE_CUROPCODE ], mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSAMOUNT ], mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSTYPE ] );
+			// Trace interrupt call:
+			if ( ( proc.flags & ( TF | EndEmulF ) ) == TF ) {
+				mem[ MEM_KERNELVARS_TRACE_CUROPCODE ] = curopc.id;
+				mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSAMOUNT ] = argLengths.argsAmount;
+				mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSTYPE ] = opcodes_matrix[ (int) curopc.id ].structType;
 
-			int tmp = curopc.args[ 0 ];
-			curopc.args[ 0 ] = traceExceptionIndex;
-			opcodeCall( op_int );
-			curopc.args[ 0 ] = tmp;
+				for ( int i = 0; i < 4; i++ )
+					* (uint32 *) &mem[ MEM_KERNELVARS_TRACE_OPCARG_START + i * 4 ] = curopc.args[ i ];
+
+				//printf( " [TF. ID %i, uint[ %i ] args type %i.\n", mem[ MEM_KERNELVARS_TRACE_CUROPCODE ], mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSAMOUNT ], mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSTYPE ] );
+
+				int tmp = curopc.args[ 0 ];
+				curopc.args[ 0 ] = traceExceptionIndex;
+				opcodeCall( op_int );
+				curopc.args[ 0 ] = tmp;
+			}
 		}
 
 		if ( proc.flags & PostTF )
