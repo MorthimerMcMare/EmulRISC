@@ -90,6 +90,7 @@ typedef void (opcode_pointer)( void );
 
 #if defined(__WIN32) || defined(__MSDOS__)
 #  include <conio.h>
+   void clrscr( void ) { system( "cls" ); }
 #elif defined( USE_NCURSES )
 #  include <ncurses.h>
 #  define clrscr() clear()
@@ -103,15 +104,6 @@ typedef void (opcode_pointer)( void );
 #  define clrscr() printf( "\033[2J" )
 #  define LINUX_DIRECT
 #  define LINUX_OS
-#endif
-
-#ifndef LINUX_NCURSES
-//# define STRGKEY_BACKSPACE 8
-# ifdef __WIN32
-   void clrscr( void ) { system( "cls" ); }
-# endif
-//#else
-//# define STRGKEY_BACKSPACE 127
 #endif
 
 

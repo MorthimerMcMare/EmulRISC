@@ -149,7 +149,7 @@ int main( void ) {
 
 	// Tracer initialization and code:
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, MEM_INTERRUPTS_START } );
-	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_START + findInterruptMatrixIndex( except_trace ) * 4, 10 } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_START + findInterruptMatrixIndex( except_trace ) * 4, 10 } );
 
 	for ( int i = 0; i < opcodes_matrix_size; i++ )
 		setMemoryArray( MEM_INTERRUPTS_MEM_OPCODENAMES_START + i * 4, getOpcodeData( i )->name, 4 );
@@ -164,17 +164,19 @@ int main( void ) {
 	uint32 savedInstructionPos = proc.protectedModeMemStart;
 	proc.protectedModeMemStart = MEM_INTERRUPTS_START + findInterruptMatrixIndex( except_trace ) * 4 - 8;
 
-	// 256 bytes: 48 opcodes, 16 variables.
-	uint32 interruptMemory = proc.protectedModeMemStart + 48 * 4;
+	// 256 bytes: 56 opcodes, 8 variables of type int32.
+	uint32 interruptMemory = proc.protectedModeMemStart + 56 * 4;
 	//queueInstruction( op_brkp, ( uint32[ 4 ] ){ 0 } );
-	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory, 1 } );
-	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 4, 10 } );
-	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 8, 11 } );
-	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 12, 12 } );
-	queueInstruction( op_store_word, ( uint32[ 4 ] ){ interruptMemory + 16, 2 } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory, 1 } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory + 4, 10 } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory + 8, 11 } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory + 12, 12 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, interruptMemory + 16 } );
+	queueInstruction( op_store_word, ( uint32[ 4 ] ){ 10, 2 } );
 
-	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 10, MEM_KERNELVARS_BIOS_SCREEN } );
-	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ interruptMemory + 20, 10 } );
+	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ 10, MEM_KERNELVARS_BIOS_SCREEN } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory + 20, 10 } );
+	//queueInstruction( op_brkp, ( uint32[ 4 ] ){ 0 } );
 
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 80 + 54 } );
@@ -192,7 +194,8 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a space.
 
-	queueInstruction( op_load_word, ( uint32[ 4 ] ){ 10, MEM_KERNELVARS_TRACE_CUROPCODE } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 12, MEM_KERNELVARS_TRACE_CUROPCODE } );
+	queueInstruction( op_load_word, ( uint32[ 4 ] ){ 10, 12 } );
 	queueInstruction( op_shl_const, ( uint32[ 4 ] ){ 10, 10, 2 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, MEM_INTERRUPTS_MEM_OPCODENAMES_START } );
 	queueInstruction( op_add, ( uint32[ 4 ] ){ 10, 10, 11 } );
@@ -208,14 +211,15 @@ int main( void ) {
 
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_getkey ) } ); // Waits for the keystroke.
 
-	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 10, interruptMemory + 20 } );
-	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ MEM_KERNELVARS_BIOS_SCREEN, 10 } ); // Reverts X/Y screen coords back.
+	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ 10, interruptMemory + 20 } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ MEM_KERNELVARS_BIOS_SCREEN, 10 } ); // Reverts X/Y screen coords back.
 
-	queueInstruction( op_load_word, ( uint32[ 4 ] ){ 2, interruptMemory + 16 } );
-	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 12, interruptMemory + 12 } );
-	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 11, interruptMemory + 8 } );
-	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 10, interruptMemory + 4 } );
-	queueInstruction( op_load_dword, ( uint32[ 4 ] ){ 1, interruptMemory } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, interruptMemory + 16 } );
+	queueInstruction( op_load_word, ( uint32[ 4 ] ){ 2, 10 } );
+	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ 12, interruptMemory + 12 } );
+	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ 11, interruptMemory + 8 } );
+	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ 10, interruptMemory + 4 } );
+	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ 1, interruptMemory } );
 
 	//queueInstruction( op_brkp, ( uint32[ 4 ] ){ 0 } );
 	queueInstruction( op_int_ret, ( uint32[ 4 ] ){ 0 } );
@@ -233,11 +237,12 @@ int main( void ) {
 	queueInstruction( op_sub, ( uint32[ 4 ] ){ 10, 10, 11 } );		// 'H'
 	queueInstruction( op_add_const, ( uint32[ 4 ] ){ 11, 11, 77 } );	// 'i'
 
-	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60001, 11 } );
-	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60000, 10 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 28, 0x60000 } );
+	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 28, 10 } );
+	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 28, 11 } );
 
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, '!' } );	// '!'
-	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 0x60002, 10 } );
+	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 28, 10 } );
 
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
@@ -250,19 +255,19 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
 
 	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
-	queueInstruction( op_jmp_const, ( uint32[ 4 ] ){ 2 } );
+	queueInstruction( op_jmp_near, ( uint32[ 4 ] ){ 2 } );
 	queueInstruction( op_nop, ( uint32[ 4 ] ){ 0 } );				// Will be skipped;
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 0xABCD } );	// Will be skipped.
 
-	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (subfunc 0h).
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // A newline character (subfunc 2h).
+	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 6, 1000 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 5, 4 } );
 	queueInstruction( op_div, ( uint32[ 4 ] ){ 6, 5, 5, 0 } );
-	queueInstruction( op_store_dword, ( uint32[ 4 ] ){ 0x60000, 5 } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ 0x60000, 5 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0x60000 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 12, 10 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_printdigit ) } );
@@ -281,7 +286,7 @@ int main( void ) {
 	queueInstruction( op_beq_near, ( uint32[ 4 ] ){ 10, 11, 4 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 'Q' } );
 	queueInstruction( op_beq_near, ( uint32[ 4 ] ){ 10, 11, 2 } );
-	queueInstruction( op_jmp_const, ( uint32[ 4 ] ){ 0xFFFF - 5 } );
+	queueInstruction( op_jmp_near, ( uint32[ 4 ] ){ 0xFFFF - 5 } );
 
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( except_end_emulation ) } ); // Ends emulation (via quasiBIOS).
 

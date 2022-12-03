@@ -13,13 +13,16 @@
 OPCODE( int );
 
 OPCODE( mov_const );
+OPCODE( mov_const_lo );
 OPCODE( load_byte );
 OPCODE( load_word );
 OPCODE( load_dword );
+OPCODE( load_dw_addr );
 OPCODE( store_lbyte );
 OPCODE( store_hbyte );
 OPCODE( store_word );
 OPCODE( store_dword );
+OPCODE( store_dw_addr );
 
 OPCODE( add );
 OPCODE( add_const );
@@ -45,11 +48,11 @@ OPCODE( neg );
 OPCODE( call_const );
 OPCODE( call_reg );
 
-OPCODE( jmp_const );
-OPCODE( jmp_reg );
+OPCODE( jmp_near );
+OPCODE( jmp_far );
 OPCODE( jf_near );
-OPCODE( jnf_near );
 OPCODE( jf_far );
+OPCODE( jnf_near );
 OPCODE( jnf_far );
 
 OPCODE( beq_near );
@@ -86,13 +89,16 @@ opcode_data opcodes_matrix[ 64 ] = {
 	{ op_int,			OPST_ByteConst, "int" },
 
 	{ op_mov_const,		OPST_1RegC,	"mov" },
+	{ op_mov_const_lo,	OPST_1RegC,	"movl" },
 	{ op_load_byte,		OPST_1RegC,	"ldb" },
 	{ op_load_word,		OPST_1RegC,	"ldw" },
 	{ op_load_dword,	OPST_1RegC,	"ldd" },
+	{ op_load_dw_addr,	OPST_1RegC,	"ldda" },
 	{ op_store_lbyte,	OPST_C1Reg,	"svbl" },
 	{ op_store_hbyte,	OPST_C1Reg,	"svbh" },
 	{ op_store_word,	OPST_C1Reg,	"svw" },
 	{ op_store_dword,	OPST_C1Reg,	"svd" },
+	{ op_store_dw_addr,	OPST_C1Reg,	"svda" },
 
 	{ op_add,			OPST_3RegC,	"add" },  // add [where], [op1], [op2], [const]	 // where = op1 + op2 + const11;
 	{ op_add_const,		OPST_2RegC,	"addv" }, // addv [where], [op1], [const]		 // where = op1 + const16;
@@ -117,8 +123,8 @@ opcode_data opcodes_matrix[ 64 ] = {
 	{ op_call_const,	OPST_1RegC, "callv" },
 	{ op_call_reg,		OPST_2RegC, "call" },
 
-	{ op_jmp_const,		OPST_WordConst, "jmp" },
-	{ op_jmp_reg,		OPST_1RegC, "jmpr" },
+	{ op_jmp_near,		OPST_WordConst, "jmp" },
+	{ op_jmp_far,		OPST_1RegC, "jmpr" },
 	{ op_jf_near,		OPST_1RegC, "jx" },
 	{ op_jnf_near,		OPST_1RegC, "jnx" },
 	{ op_jf_far,		OPST_2Reg,  "jxf" },
