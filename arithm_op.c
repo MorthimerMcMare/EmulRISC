@@ -1,9 +1,13 @@
+#include <math.h>
 #include "defines.h"
 #include "internal.h"
 
 /* Math opcodes (both for integers and float-point digits): */
 
 void opcodeCall( opcode_pointer );
+
+
+// Integers:
 
 uint64 setAddOverflow( uint32 val1, uint32 val2 ) {
 	uint64 resultadd = ( val1 + val2 );
@@ -101,3 +105,41 @@ OPCODE( div_u ) {
 		checkZeroFlag( result );
 	}
 }
+
+
+// Floating-point:
+
+OPCODE( fadd ) {
+	proc.flags &= ~( ZF | SF | FINF | FXXF );
+
+	if ( proc.flags & FDDF ) {
+		if ( checkXDoubleReg( 0 ) || checkXDoubleReg( 1 ) || checkXDoubleReg( 2 ) ) {
+			curopc.args[ 0 ] = findInterruptMatrixIndex( except_invalid_opcode );
+			op_int();
+		} else {
+			F2DOUBLEREG( FREGARG( 0 ) ) = F2DOUBLEREG( FREGARG( 1 ) ) + F2DOUBLEREG( FREGARG( 2 ) );
+			checkDoubleFlags( F2DOUBLEREG( FREGARG( 0 ) ) );
+		}
+	} else {
+		FREGARG( 0 ) = FREGARG( 1 ) + FREGARG( 2 );
+		checkDoubleFlags( FREGARG( 0 ) );
+	}
+}
+
+OPCODE( fsub ) {
+	proc.flags &= ~( ZF | SF | FINF | FXXF );
+
+	if ( proc.flags & FDDF ) {
+		if ( checkXDoubleReg( 0 ) || checkXDoubleReg( 1 ) || checkXDoubleReg( 2 ) ) {
+			curopc.args[ 0 ] = findInterruptMatrixIndex( except_invalid_opcode );
+			op_int();
+		} else {
+			F2DOUBLEREG( FREGARG( 0 ) ) = F2DOUBLEREG( FREGARG( 1 ) ) + F2DOUBLEREG( FREGARG( 2 ) );
+			checkDoubleFlags( F2DOUBLEREG( FREGARG( 0 ) ) );
+		}
+	} else {
+		FREGARG( 0 ) = FREGARG( 1 ) + FREGARG( 2 );
+		checkDoubleFlags( FREGARG( 0 ) );
+	}
+}
+

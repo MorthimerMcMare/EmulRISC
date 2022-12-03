@@ -42,13 +42,13 @@ EXCEPTIONOPCODE( breakpoint ) {
 	if ( proc.flags & TF )
 		putchar( 'T' );
 	if ( proc.flags & FDDF )
-		printf( "[fdd]" );
-	if ( proc.flags & FNF )
-		printf( "[fn]" );
-	if ( proc.flags & FPF )
-		printf( "[fp]" );
+		printf( "<fddp>" );
+	if ( proc.flags & FINF )
+		printf( "<finf>" );
+	if ( proc.flags & FXXF )
+		printf( "<fnan>" );
 	if ( proc.flags & RlModeF )
-		printf( "[REAL]" );
+		printf( "{REAL}" );
 
 	printf( "),\ntmp[0..6]: 0x%04X, 0x%04X, 0x%04X; 0x%04X, 0x%04X, 0x%04X, 0x%04X\n", proc.t0, proc.t1, proc.t2, proc.t3, proc.t4, proc.t5, proc.t6 );
 	printf( "arg[0..7]: 0x%04X, 0x%04X, 0x%04X, 0x%04X, 0x%04X, 0x%04X; 0x%04X, 0x%04X\n", proc.a0, proc.a1, proc.a2, proc.a3, proc.a4, proc.a5, proc.a6, proc.a7 );

@@ -8,7 +8,7 @@
 #define RISC_INSTRUCTION_LENGTH 4 /* Byte length of the every one instruction. */
 
 #define MAX_REGS 32 /* As 2^5. */
-#define MAX_FLOAT_REGS 16
+#define MAX_FLOAT_REGS 32
 
 #define MAX_MEM (1024 * 1024 * 64) /* Statically allocated 64 MB. */
 
@@ -118,14 +118,15 @@ typedef enum {
 	VUF		= 0x0040,	// Videopage updated flag.
 
 	FDDF	= 0x0100,	// Double-data flag [FloatCPU only].
-	FNF		= 0x0200,	// Infinity value flag [FloatCPU only].
-	FPF		= 0x0400,	// Precision lose flag [FloatCPU only].
+	FINF	= 0x0200,	// Infinity value flag [FloatCPU only].
+	FXXF	= 0x0400,	// Not-a-number flag [FloatCPU only].
+
 	RlModeF	= 0x0800,	// Real (root/system) processor mode flag.
 
 	PostTF	= 0x4000,
 	EndEmulF= 0x8000,	// Exit flag. Maybe will be removed in future.
 
-	FLAGS_Storable = ZF | SF | CF | OF | IF | TF | FDDF | FNF | FPF | RlModeF // They will be handled via "iret" and same opcodes.
+	FLAGS_Storable = ZF | SF | CF | OF | IF | TF | FDDF | FINF | FXXF | RlModeF // They will be handled via "iret" and same opcodes.
 } EFlags;
 
 #define IF_REAL_MODE if ( proc.flags & RlModeF )
@@ -145,12 +146,22 @@ typedef struct {
 #define MAX( X, Y ) ( (X) > (Y)? (X) : (Y) )
 
 #define REGARG( index ) proc.regs[ curopc.args[ index ] ]
+#define FREGARG( index ) proc.fregs[ curopc.args[ index ] ]
+#define F2DOUBLEREG( memaddr ) ( * ((double *) &memaddr) )
 
-#define checkZeroFlag( value )\
-if ( value == 0 )\
-	proc.flags |= ZF;\
+#define checkXDoubleReg( regindex ) ( curopc.args[ regindex ] + 1 >= MAX_FLOAT_REGS )
+#define checkDoubleFlags( value ) {\
+proc.flags &= ~SF | (( value < 0.0 ) * SF);\
+if ( isnan( value ) )\
+	proc.flags |= FXXF;\
+else if ( isinf( value ) )\
+	proc.flags |= FINF;\
 else\
-	proc.flags &= ~ZF;
+	proc.flags &= ~ZF | (( value == 0.0 ) * ZF);\
+}
+
+#define checkZeroFlag( value ) proc.flags &= ~ZF | (( value == 0 ) * ZF);
+
 
 #define INVALID_INTERRUPT_ARG( intname, arg7 )\
 	proc.ra = proc.instructionptr;\
@@ -216,6 +227,14 @@ opcode_structtype_length opcode_structtype_lengths[] = {
 	{ 2, { 21, 5 },			{ OPSPT_Const, OPSPT_Reg } },
 };
 
+
+typedef union _ints_doublepoint_4reg {
+	struct ints {
+		uint32 int0;
+		uint32 int1;
+	};
+	double d;
+} ints_or_double;
 
 /*typedef union {
 	uint32 t32;

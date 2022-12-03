@@ -94,3 +94,59 @@ OPCODE( store_dw_addr ) {
 	INITMEMOPCODE( curopc.args[ 0 ] )
 		* (uint32 *) &mem[ addr ] = REGARG( 1 );
 }
+
+
+// Floating-point coprocessor:
+
+OPCODE( transfer_int2float ) {
+	if ( proc.flags & FDDF ) {
+		if ( checkXDoubleReg( 0 ) ) {
+			curopc.args[ 0 ] = findInterruptMatrixIndex( except_invalid_opcode );
+			op_int();
+		} else {
+			ints_or_double doubleint;
+			doubleint.int0 = REGARG( 1 );
+			doubleint.int1 = REGARG( 2 );
+
+			F2DOUBLEREG( FREGARG( 0 ) ) = doubleint.d;
+			checkDoubleFlags( F2DOUBLEREG( FREGARG( 0 ) ) );
+		}
+	} else {
+		FREGARG( 0 ) = * ((float *) &REGARG( 1 ));
+		checkDoubleFlags( FREGARG( 0 ) );
+	}
+}
+
+OPCODE( transfer_float2int ) {
+	if ( proc.flags & FDDF ) {
+		if ( checkXDoubleReg( 2 ) ) {
+			curopc.args[ 0 ] = findInterruptMatrixIndex( except_invalid_opcode );
+			op_int();
+		} else {
+			ints_or_double doubleint;
+			doubleint.d = * ((double *) &FREGARG( 2 ));
+
+			REGARG( 0 ) = doubleint.int0;
+			REGARG( 1 ) = doubleint.int1;
+		}
+	} else {
+		REGARG( 0 ) = * ((uint32 *) &FREGARG( 1 ));
+	}
+}
+
+OPCODE( freg_precision ) {
+	switch ( REGARG( 2 ) ) {
+		case 1:
+			FREGARG( 0 ) = (float)( F2DOUBLEREG( FREGARG( 1 ) ) );
+			checkDoubleFlags( FREGARG( 0 ) );
+			break;
+		case 2:
+			F2DOUBLEREG( FREGARG( 0 ) ) = (double) FREGARG( 1 );
+			checkDoubleFlags( F2DOUBLEREG( FREGARG( 0 ) ) );
+			break;
+		default:
+			curopc.args[ 0 ] = findInterruptMatrixIndex( except_invalid_opcode );
+			op_int();
+			break;
+	}
+}

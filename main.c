@@ -42,19 +42,7 @@ void opcodeCall( opcode_pointer opcode ) {
 
 	opcode();
 
-	printf( " [\\Post regs: ra 0x%X; a0..a2 {0x%X, 0x%X, 0x%X}; t0..t2 {0x%X, 0x%X, 0x%X}; sf 0x%X]", proc.ra, proc.a0, proc.a1, proc.a2, proc.t0, proc.t1, proc.t2, proc.sf );
-	printFlags();
-
-	//if ( getch() == 'Q' )
-	//	proc.flags |= EndEmulF;
-#else
-	opcode();
-#endif
-}
-
-
-void printFlags( void ) {
-	printf( "<Flags: " );
+	printf( " [\\Post regs: ra 0x%X; a0..a2 {0x%X, 0x%X, 0x%X}; t0..t2 {0x%X, 0x%X, 0x%X}; sf 0x%X; flags:", proc.ra, proc.a0, proc.a1, proc.a2, proc.t0, proc.t1, proc.t2, proc.sf );
 
 	if ( proc.flags & ZF )
 		putchar( 'Z' );
@@ -70,16 +58,26 @@ void printFlags( void ) {
 		putchar( 'T' );
 
 	if ( proc.flags & FDDF )
-		printf( "[fdd]" );
-	if ( proc.flags & FNF )
-		printf( "[fn]" );
-	if ( proc.flags & FPF )
-		printf( "[fp]" );
+		printf( "<fddp>" );
+	if ( proc.flags & FINF )
+		printf( "<finf>" );
+	if ( proc.flags & FXXF )
+		printf( "<fnan>" );
 
 	if ( proc.flags & RlModeF )
-		printf( "[REAL]" );
+		printf( "{REAL}" );
 
-	puts( ">" );
+	puts( "]" );
+
+	//if ( getch() == 'Q' )
+	//	proc.flags |= EndEmulF;
+#else
+	opcode();
+#endif
+}
+
+
+void printFlags( void ) {
 }
 
 void queueInstruction( opcode_pointer opcode, const uint32 opcargs[ static const 4 ] ) {
@@ -248,13 +246,14 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 2 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Videomemory output.
 
+	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, 4 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 999 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Moves cursor (subfunc 4h).
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, 0x60000 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 0 } );
+	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 
-	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_jmp_near, ( uint32[ 4 ] ){ 3 } );
 	queueInstruction( op_nop, ( uint32[ 4 ] ){ 0 } );					// Will be skipped;
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, 0xABCD } );	// Will be skipped.
@@ -262,7 +261,6 @@ int main( void ) {
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (subtype 0h).
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 2 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // A newline character (subtype 2h).
-	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgT1, 1000 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgT0, 4 } );

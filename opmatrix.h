@@ -76,6 +76,11 @@ OPCODE( int_ret );
 OPCODE( nop );
 OPCODE( brkp );
 
+OPCODE( fadd );
+OPCODE( transfer_int2float );
+OPCODE( transfer_float2int );
+OPCODE( freg_precision );
+
 
 
 
@@ -147,8 +152,13 @@ opcode_data opcodes_matrix[ 64 ] = {
 	{ op_clearflag,		OPST_MaxConst, "clf" },
 
 	{ op_int_ret,		OPST_None, "iret" },
-	{ op_nop,			OPST_None,	"nop" },
+	{ op_nop,			OPST_None, "nop" },
 	{ op_brkp,			OPST_None, "brkp" },
+
+	{ op_fadd,			OPST_3Reg, "fadd" },
+	{ op_transfer_int2float, OPST_3Reg,  "trif" },
+	{ op_transfer_float2int, OPST_3Reg,  "trfi" },
+	{ op_freg_precision,	 OPST_2RegC, "fprc" },
 };
 
 
