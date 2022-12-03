@@ -148,8 +148,8 @@ int main( void ) {
 #endif
 
 	// Tracer initialization and code:
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, MEM_INTERRUPTS_START } );
-	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_START + findInterruptMatrixIndex( except_trace ) * 4, 10 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, MEM_INTERRUPTS_START } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_START + findInterruptMatrixIndex( except_trace ) * 4, RgA0 } );
 
 	for ( int i = 0; i < opcodes_matrix_size; i++ )
 		setMemoryArray( MEM_INTERRUPTS_MEM_OPCODENAMES_START + i * 4, getOpcodeData( i )->name, 4 );
@@ -167,59 +167,59 @@ int main( void ) {
 	// 256 bytes: 56 opcodes, 8 variables of type int32.
 	uint32 interruptMemory = proc.protectedModeMemStart + 56 * 4;
 	//queueInstruction( op_brkp, ( uint32[ 4 ] ){ 0 } );
-	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory, 1 } );
-	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory + 4, 10 } );
-	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory + 8, 11 } );
-	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory + 12, 12 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, interruptMemory + 16 } );
-	queueInstruction( op_store_word, ( uint32[ 4 ] ){ 10, 2 } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory, RgRetAddr } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory + 4, RgA0 } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory + 8, RgA1 } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory + 12, RgA2 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, interruptMemory + 16 } );
+	queueInstruction( op_store_word, ( uint32[ 4 ] ){ RgA0, RgSavedFlags } );
 
-	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ 10, MEM_KERNELVARS_BIOS_SCREEN } );
-	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory + 20, 10 } );
+	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ RgA0, MEM_KERNELVARS_BIOS_SCREEN } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ interruptMemory + 20, RgA0 } );
 	//queueInstruction( op_brkp, ( uint32[ 4 ] ){ 0 } );
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 80 + 54 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, 4 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 80 + 54 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Moves cursor (subfunc 4h).
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, MEM_INTERRUPTS_MEM_OPCODENAMES_START - 16 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, MEM_INTERRUPTS_MEM_OPCODENAMES_START - 16 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 0 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string ("[Trace] ").
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, interruptMemory } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 4 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 12, 16 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, interruptMemory } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 4 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA2, 16 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_printdigit ) } ); // Prints a digit (return address).
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, MEM_INTERRUPTS_MEM_OPCODENAMES_START - 3 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, MEM_INTERRUPTS_MEM_OPCODENAMES_START - 3 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 0 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a space.
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 12, MEM_KERNELVARS_TRACE_CUROPCODE } );
-	queueInstruction( op_load_word, ( uint32[ 4 ] ){ 10, 12 } );
-	queueInstruction( op_shl_const, ( uint32[ 4 ] ){ 10, 10, 2 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, MEM_INTERRUPTS_MEM_OPCODENAMES_START } );
-	queueInstruction( op_add, ( uint32[ 4 ] ){ 10, 10, 11 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA2, MEM_KERNELVARS_TRACE_CUROPCODE } );
+	queueInstruction( op_load_word, ( uint32[ 4 ] ){ RgA0, RgA2 } );
+	queueInstruction( op_shl_const, ( uint32[ 4 ] ){ RgA0, RgA0, 2 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, MEM_INTERRUPTS_MEM_OPCODENAMES_START } );
+	queueInstruction( op_add, ( uint32[ 4 ] ){ RgA0, RgA0, RgA1 } );
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 0 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (opcode name).
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, MEM_INTERRUPTS_MEM_OPCODENAMES_START - 5 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, MEM_INTERRUPTS_MEM_OPCODENAMES_START - 5 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 0 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (four spaces here).
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 2 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a newline.
 
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_getkey ) } ); // Waits for the keystroke.
 
-	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ 10, interruptMemory + 20 } );
-	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ MEM_KERNELVARS_BIOS_SCREEN, 10 } ); // Reverts X/Y screen coords back.
+	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ RgA0, interruptMemory + 20 } );
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ MEM_KERNELVARS_BIOS_SCREEN, RgA0 } ); // Reverts X/Y screen coords back.
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, interruptMemory + 16 } );
-	queueInstruction( op_load_word, ( uint32[ 4 ] ){ 2, 10 } );
-	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ 12, interruptMemory + 12 } );
-	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ 11, interruptMemory + 8 } );
-	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ 10, interruptMemory + 4 } );
-	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ 1, interruptMemory } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, interruptMemory + 16 } );
+	queueInstruction( op_load_word, ( uint32[ 4 ] ){ RgSavedFlags, RgA0 } );
+	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ RgA2, interruptMemory + 12 } );
+	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ RgA1, interruptMemory + 8 } );
+	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ RgA0, interruptMemory + 4 } );
+	queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ RgRetAddr, interruptMemory } );
 
 	//queueInstruction( op_brkp, ( uint32[ 4 ] ){ 0 } );
 	queueInstruction( op_int_ret, ( uint32[ 4 ] ){ 0 } );
@@ -231,61 +231,61 @@ int main( void ) {
 	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ RlModeF } );
 
 	// Test program:
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 100 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 28 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, 100 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 28 } );
 
-	queueInstruction( op_sub, ( uint32[ 4 ] ){ 10, 10, 11 } );		// 'H'
-	queueInstruction( op_add_const, ( uint32[ 4 ] ){ 11, 11, 77 } );	// 'i'
+	queueInstruction( op_sub, ( uint32[ 4 ] ){ RgA0, RgA0, RgA1 } );		// 'H'
+	queueInstruction( op_add_const, ( uint32[ 4 ] ){ RgA1, RgA1, 77 } );	// 'i'
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 28, 0x60000 } );
-	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 28, 10 } );
-	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 28, 11 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgT3, 0x60000 } );
+	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ RgT3, RgA0 } );
+	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ RgT3, RgA1 } );
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, '!' } );	// '!'
-	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ 28, 10 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, '!' } );	// '!'
+	queueInstruction( op_store_lbyte, ( uint32[ 4 ] ){ RgT3, RgA0 } );
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, 0 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 2 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Videomemory output.
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 999 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, 4 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 999 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Moves cursor (subfunc 4h).
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0x60000 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, 0x60000 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 0 } );
 
 	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
-	queueInstruction( op_jmp_near, ( uint32[ 4 ] ){ 2 } );
-	queueInstruction( op_nop, ( uint32[ 4 ] ){ 0 } );				// Will be skipped;
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 1, 0xABCD } );	// Will be skipped.
+	queueInstruction( op_jmp_near, ( uint32[ 4 ] ){ 3 } );
+	queueInstruction( op_nop, ( uint32[ 4 ] ){ 0 } );					// Will be skipped;
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, 0xABCD } );	// Will be skipped.
 
-	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (subfunc 0h).
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 2 } );
-	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // A newline character (subfunc 2h).
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (subtype 0h).
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 2 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // A newline character (subtype 2h).
 	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 6, 1000 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 5, 4 } );
-	queueInstruction( op_div, ( uint32[ 4 ] ){ 6, 5, 5, 0 } );
-	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ 0x60000, 5 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0x60000 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 12, 10 } );
-	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_printdigit ) } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgT1, 1000 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgT0, 4 } );
+	queueInstruction( op_div, ( uint32[ 4 ] ){ RgT1, RgT0, RgT0, RgZero } ); // Eval (1000 / 4).
+	queueInstruction( op_store_dw_addr, ( uint32[ 4 ] ){ 0x60000, RgT0 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, 0x60000 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA2, 10 } );
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_printdigit ) } ); // Prints a (1000 / 4) = "250".
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 4 } ); 	
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 80 * 24 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, 4 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 80 * 24 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Moves cursor (subfunc 4h).
 
 	setMemoryString( 0x60020, "(Press 'q' to exit...)" );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 10, 0x60020 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 0 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, 0x60020 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 0 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } );
 
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_getkey ) } ); // Waits for the keystroke.
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 'q' } );
-	queueInstruction( op_beq_near, ( uint32[ 4 ] ){ 10, 11, 4 } );
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ 11, 'Q' } );
-	queueInstruction( op_beq_near, ( uint32[ 4 ] ){ 10, 11, 2 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 'q' } );
+	queueInstruction( op_beq_near, ( uint32[ 4 ] ){ RgA0, RgA1, 4 } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 'Q' } );
+	queueInstruction( op_beq_near, ( uint32[ 4 ] ){ RgA0, RgA1, 2 } );
 	queueInstruction( op_jmp_near, ( uint32[ 4 ] ){ 0xFFFF - 5 } );
 
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( except_end_emulation ) } ); // Ends emulation (via quasiBIOS).

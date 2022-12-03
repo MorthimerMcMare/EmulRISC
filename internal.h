@@ -57,6 +57,26 @@ struct _processor {
 	uint32 bva; // Bad virtual address.
 } proc;
 
+enum ERegisterIndices {
+	RgZ  = 0,
+	RgZero = RgZ,
+	RgRA = 1,
+	RgRetAddr = RgRA,
+	RgReturnAddress = RgRA,
+	RgSF = 2,
+	RgSavedFlags = RgSF,
+	RgGP = 3,
+	RgTP = 4,
+
+	RgT0, RgT1, RgT2, 												// 5..7;
+	RgS0, RgS1, 													// 8..9;
+	RgA0, RgA1, RgA2, RgA3, RgA4, RgA5, RgA6, RgA7, 				// 10..16;
+	RgS2, RgS3, RgS4, RgS5, RgS6, RgS7, RgS8, RgS9, RgS10, RgS11, 	// 17..27;
+	RgT3, RgT4, RgT5, RgT6, 										// 28..31.
+
+	RgQuantity
+};
+
 
 opcode_mem_struct curopc = { 0 };
 
