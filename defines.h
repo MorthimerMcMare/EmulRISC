@@ -171,6 +171,24 @@ else\
 
 
 typedef enum {
+	INTT_User = 0,
+	INTT_Exception,
+	INTT_BIOS,
+	INTT_IRQ,
+
+	INTT_Unmaskable		= 0x1000
+} EInterruptType;
+
+typedef enum {
+	OPSPT_Undefined = 0,
+	OPSPT_Reg,
+	OPSPT_Const,
+
+	OPSPT_Register = OPSPT_Reg,
+	OPSPT_Constant = OPSPT_Const
+} EOpcodeStructPartType;
+
+typedef enum {
 	OPST_None = 0,	// No args.
 	OPST_1Reg,		// 5:[r1].
 	OPST_1RegC,		// 5:[r1], 21:const.
@@ -184,24 +202,6 @@ typedef enum {
 	OPST_MaxConst,	// 26:const.
 	OPST_C1Reg,		// 21:const, 5:[r1].
 } EOpcodeStructureType;
-
-typedef enum {
-	OPSPT_Undefined = 0,
-	OPSPT_Reg,
-	OPSPT_Const,
-
-	OPSPT_Register = OPSPT_Reg,
-	OPSPT_Constant = OPSPT_Const
-} EOpcodeStructPartType;
-
-typedef enum {
-	INTT_User = 0,
-	INTT_Exception,
-	INTT_BIOS,
-	INTT_IRQ,
-
-	INTT_Unmaskable		= 0x1000
-} EInterruptType;
 
 typedef struct _opcode_structtype_bitlength {
 	int argsAmount;

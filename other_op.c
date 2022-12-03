@@ -31,7 +31,7 @@ OPCODE( int ) {
 
 		//printf( "op_int(). intCodeptr == mem[ 0x%04X ] == 0x%X.\n", interruptCodePtr, * (uint32 *) &mem[ interruptCodePtr ] );
 
-		// Interrupts are overridden only if address value in the IVT is not equals to zero:
+		// Interrupts are overridden only if address value in the IVT is not equal to zero:
 		if ( interruptCodePtr == 0 && intdata->defaddress ) {
 			intdata->defaddress();
 			proc.flags |= ( proc.sf & TF );
