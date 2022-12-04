@@ -1,9 +1,6 @@
 //
 // Exceptions and quasiBIOS functions.
 //
-// (...Yes, I perfectly know that it's mauvais ton to write
-//code in header files).
-//
 
 #ifndef __RISCEMUL_QUASIBIOS_H
 #define __RISCEMUL_QUASIBIOS_H

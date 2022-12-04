@@ -15,6 +15,7 @@ OPCODE( call_reg ) {	// "JALR r_saveto, r_offset, const_offset".
 OPCODE( jmp_near ) {
 	//printf( "jmp_near(). prev 0x%X, add %i, new 0x%X\n", proc.instructionptr, ( (int16) curopc.args[ 0 ] ) * RISC_INSTRUCTION_LENGTH, proc.instructionptr + ( (int16) curopc.args[ 0 ] ) * RISC_INSTRUCTION_LENGTH );
 	proc.instructionptr += ( (int16) curopc.args[ 0 ] ) * RISC_INSTRUCTION_LENGTH;
+	//getch();
 }
 OPCODE( jmp_far ) {
 	proc.instructionptr += RISC_INSTRUCTION_LENGTH * (int32) REGARG( 0 );

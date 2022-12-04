@@ -184,13 +184,14 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 0 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string ("[Trace] ").
 
-	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, interruptMemory } );
+	//queueInstruction( op_load_dw_addr, ( uint32[ 4 ] ){ RgA0, MEM_KERNELVARS_TRACE_CUROPCODE_PREVADDR } );
+	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, MEM_KERNELVARS_TRACE_CUROPCODE_PREVADDR } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 4 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA2, 16 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_printdigit ) } ); // Prints a digit (return address).
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, MEM_INTERRUPTS_MEM_OPCODENAMES_START - 3 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 0 } );
-	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a space.
+	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints some spaces.
 
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA2, MEM_KERNELVARS_TRACE_CUROPCODE } );
 	queueInstruction( op_load_word, ( uint32[ 4 ] ){ RgA0, RgA2 } );
@@ -246,13 +247,12 @@ int main( void ) {
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 2 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Videomemory output.
 
-	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, 4 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 999 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_videomemory ) } ); // Moves cursor (subfunc 4h).
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA0, 0x60000 } );
+	//queueInstruction( op_setflag, ( uint32[ 4 ] ){ TF } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 0 } );
-	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 
 	queueInstruction( op_jmp_near, ( uint32[ 4 ] ){ 3 } );
 	queueInstruction( op_nop, ( uint32[ 4 ] ){ 0 } );					// Will be skipped;
@@ -261,6 +261,7 @@ int main( void ) {
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // Prints a string (subtype 0h).
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgA1, 2 } );
 	queueInstruction( op_int, ( uint32[ 4 ] ){ FINDINT( bios_print ) } ); // A newline character (subtype 2h).
+	//queueInstruction( op_clearflag, ( uint32[ 4 ] ){ TF } );
 
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgT1, 1000 } );
 	queueInstruction( op_mov_const, ( uint32[ 4 ] ){ RgT0, 4 } );
@@ -298,7 +299,7 @@ int main( void ) {
 	//uint32 last_opcode_id_exitcheck = 0;
 
 	uint32 traceExceptionIndex = FINDINT( except_trace );
-	uint32 prevInstrutionPtr = proc.instructionptr;
+	uint32 prevInstructionPtr = proc.instructionptr;
 
 	while ( !( proc.flags & EndEmulF ) ) {
 		if ( proc.instructionptr >= MAX_MEM ) {
@@ -342,11 +343,15 @@ int main( void ) {
 				mem[ MEM_KERNELVARS_TRACE_CUROPCODE ] = curopc.id;
 				mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSAMOUNT ] = argLengths.argsAmount;
 				mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSTYPE ] = opcodes_matrix[ (int) curopc.id ].structType;
+				* (uint32 *) &mem[ MEM_KERNELVARS_TRACE_CUROPCODE_PREVADDR ] = prevInstructionPtr;
 
 				for ( int i = 0; i < 4; i++ )
 					* (uint32 *) &mem[ MEM_KERNELVARS_TRACE_OPCARG_START + i * 4 ] = curopc.args[ i ];
 
 				//printf( " [TF. ID %i, uint[ %i ] args type %i.\n", mem[ MEM_KERNELVARS_TRACE_CUROPCODE ], mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSAMOUNT ], mem[ MEM_KERNELVARS_TRACE_CUROPCODE_ARGSTYPE ] );
+
+				if ( proc.instructionptr != prevInstructionPtr )
+					proc.instructionptr -= RISC_INSTRUCTION_LENGTH;
 
 				int tmp = curopc.args[ 0 ];
 				curopc.args[ 0 ] = traceExceptionIndex;
@@ -388,10 +393,10 @@ int main( void ) {
 			proc.flags &= ~VUF;
 		}
 
-		if ( proc.instructionptr == prevInstrutionPtr )
+		if ( proc.instructionptr == prevInstructionPtr )
 			proc.instructionptr += RISC_INSTRUCTION_LENGTH;
 
-		prevInstrutionPtr = proc.instructionptr;
+		prevInstructionPtr = proc.instructionptr;
 		proc.zero = 0;
 
 		// Emergency exit check:
