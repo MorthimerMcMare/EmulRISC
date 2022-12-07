@@ -6,7 +6,7 @@
 
 /*  An option that only makes sense for the Linux; more precisely, switching 
   between direct terminal or ncurses output: */
-//#define USE_NCURSES
+#define USE_NCURSES
 
 
 // CMake will be here... Someday...

@@ -230,7 +230,7 @@ opcode_structtype_length opcode_structtype_lengths[] = {
 
 
 typedef union _ints_doublepoint_4reg {
-	struct ints {
+	struct {
 		uint32 int0;
 		uint32 int1;
 	};
