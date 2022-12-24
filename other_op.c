@@ -71,6 +71,24 @@ OPCODE( brkp ) {
 	except_breakpoint();
 }
 
+OPCODE( read_bva ) {
+	static int bvaindex = 0;
+	REGARG( 0 ) = proc.bva[ bvaindex ];
+	bvaindex = ( bvaindex + 1 ) % 64;
+}
+OPCODE( readwrite_tlb ) {
+	if ( REGARG( 1 ) < MAX_TLB ) {
+		if ( REGARG( 2 ) == 0 )
+			proc.tlb[ REGARG( 1 ) ] = REGARG( 0 );
+		else
+			REGARG( 0 ) = proc.tlb[ REGARG( 1 ) ];
+	} else {
+		proc.ra = proc.instructionptr;
+		curopc.args[ 0 ] = findInterruptMatrixIndex( except_tlb );
+		opcodeCall( op_int );
+	}
+}
+
 OPCODE( setflag )	{ proc.flags |= ( curopc.args[ 0 ] & FLAGS_Storable ); }
 OPCODE( clearflag )	{ proc.flags &= ~( curopc.args[ 0 ] & FLAGS_Storable ); }
 

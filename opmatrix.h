@@ -75,8 +75,13 @@ OPCODE( clearflag );
 OPCODE( int_ret );
 OPCODE( nop );
 OPCODE( brkp );
+OPCODE( read_bva );
+OPCODE( readwrite_tlb );
 
 OPCODE( fadd );
+OPCODE( fsub );
+OPCODE( fmul );
+OPCODE( fdiv );
 OPCODE( transfer_int2float );
 OPCODE( transfer_float2int );
 OPCODE( freg_precision );
@@ -154,8 +159,13 @@ opcode_data opcodes_matrix[ 64 ] = {
 	{ op_int_ret,		OPST_None, "iret" },
 	{ op_nop,			OPST_None, "nop" },
 	{ op_brkp,			OPST_None, "brkp" },
+	{ op_read_bva,		OPST_1Reg, "rbva" },
+	{ op_readwrite_tlb,	OPST_2RegC,"atlb" },
 
 	{ op_fadd,			OPST_3Reg, "fadd" },
+	{ op_fsub,			OPST_3Reg, "fsub" },
+	{ op_fmul,			OPST_3Reg, "fmul" },
+	{ op_fdiv,			OPST_3Reg, "fdiv" },
 	{ op_transfer_int2float, OPST_3Reg,  "trif" },
 	{ op_transfer_float2int, OPST_3Reg,  "trfi" },
 	{ op_freg_precision,	 OPST_2RegC, "fprc" },
@@ -198,10 +208,8 @@ EXCEPTIONOPCODE( irq0 );
 EXCEPTIONOPCODE( irq1 );
 EXCEPTIONOPCODE( irq2 );
 EXCEPTIONOPCODE( irq3 );
-EXCEPTIONOPCODE( irq4 );
-EXCEPTIONOPCODE( irq5 );
-EXCEPTIONOPCODE( irq6 );
-EXCEPTIONOPCODE( irq7 );
+EXCEPTIONOPCODE( tlb );
+EXCEPTIONOPCODE( bva );
 
 BIOSOPCODE( print );
 BIOSOPCODE( printdigit );
@@ -227,10 +235,10 @@ interrupt_data interrupts_matrix[ MEM_INTERRUPT_VECTOR_TABLE_EXCEPTIONS_AMOUNT +
 	{ except_irq1, 				INTT_IRQ },
 	{ except_irq2, 				INTT_IRQ },
 	{ except_irq3, 				INTT_IRQ },
-	{ except_irq4, 				INTT_IRQ },
-	{ except_irq5, 				INTT_IRQ },
-	{ except_irq6, 				INTT_IRQ },
-	{ except_irq7, 				INTT_IRQ },
+	{ except_tlb, 				INTT_Exception | INTT_Unmaskable },
+	{ except_bva, 				INTT_Exception },
+	{ NULL, 					INTT_Exception },
+	{ NULL, 					INTT_Exception },
 	{ bios_videomemory,			INTT_BIOS }, // 0x10
 	{ bios_print,				INTT_BIOS },
 	{ bios_printdigit,			INTT_BIOS },

@@ -9,6 +9,8 @@
 
 #define MAX_REGS 32 /* As 2^5. */
 #define MAX_FLOAT_REGS 32
+#define MAX_BVA 32
+#define MAX_TLB 32
 
 #define MAX_MEM (1024 * 1024 * 64) /* Statically allocated 64 MB. */
 

@@ -12,9 +12,12 @@
 #include <math.h>
 #include "defines.h"
 
+EXCEPTIONOPCODE( end_emulation ) {
+	proc.flags |= EndEmulF;
+}
 
 EXCEPTIONOPCODE( zero_division ) {
-	puts( "Division by zero." );
+	printf( "Division by zero, pc == 0x%08X.\n", proc.instructionptr );
 	proc.flags |= EndEmulF;
 }
 
@@ -73,14 +76,12 @@ EXCEPTIONOPCODE( irq0 ) {}
 EXCEPTIONOPCODE( irq1 ) {}
 EXCEPTIONOPCODE( irq2 ) {}
 EXCEPTIONOPCODE( irq3 ) {}
-EXCEPTIONOPCODE( irq4 ) {}
-EXCEPTIONOPCODE( irq5 ) {}
-EXCEPTIONOPCODE( irq6 ) {}
-EXCEPTIONOPCODE( irq7 ) {}
 
-EXCEPTIONOPCODE( end_emulation ) {
+EXCEPTIONOPCODE( tlb ) {
+	printf( "Failed to handle a TranslationLookasideBuffer[] (pc 0x%08X, cell %i).\n", proc.instructionptr, proc.a0 );
 	proc.flags |= EndEmulF;
 }
+EXCEPTIONOPCODE( bva ) { /* Let OS interrupt be here. */ }
 
 
 

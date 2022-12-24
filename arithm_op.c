@@ -109,37 +109,46 @@ OPCODE( div_u ) {
 
 // Floating-point:
 
-OPCODE( fadd ) {
-	proc.flags &= ~( ZF | SF | FINF | FXXF );
+#define FLOATPOINTOP_PART1 \
+	proc.flags &= ~( ZF | SF | FINF | FXXF );\
+	if ( proc.flags & FDDF ) {\
+		if ( checkXDoubleReg( 0 ) || checkXDoubleReg( 1 ) || checkXDoubleReg( 2 ) ) {\
+			curopc.args[ 0 ] = findInterruptMatrixIndex( except_invalid_opcode );\
+			op_int();\
+		} else {\
+			F2DOUBLEREG( FREGARG( 0 ) ) = F2DOUBLEREG( FREGARG( 1 ) )
 
-	if ( proc.flags & FDDF ) {
-		if ( checkXDoubleReg( 0 ) || checkXDoubleReg( 1 ) || checkXDoubleReg( 2 ) ) {
-			curopc.args[ 0 ] = findInterruptMatrixIndex( except_invalid_opcode );
-			op_int();
-		} else {
-			F2DOUBLEREG( FREGARG( 0 ) ) = F2DOUBLEREG( FREGARG( 1 ) ) + F2DOUBLEREG( FREGARG( 2 ) );
-			checkDoubleFlags( F2DOUBLEREG( FREGARG( 0 ) ) );
-		}
-	} else {
-		FREGARG( 0 ) = FREGARG( 1 ) + FREGARG( 2 );
-		checkDoubleFlags( FREGARG( 0 ) );
+#define FLOATPOINTOP_PART2 \
+			F2DOUBLEREG( FREGARG( 2 ) );\
+			checkDoubleFlags( F2DOUBLEREG( FREGARG( 0 ) ) );\
+		}\
+	} else {\
+		FREGARG( 0 ) = FREGARG( 1 )
+
+#define FLOATPOINTOP_PART3 \
+		FREGARG( 2 );\
+		checkDoubleFlags( FREGARG( 0 ) );\
 	}
+
+
+
+OPCODE( fadd ) {
+	FLOATPOINTOP_PART1 + FLOATPOINTOP_PART2 + FLOATPOINTOP_PART3;
 }
 
 OPCODE( fsub ) {
-	proc.flags &= ~( ZF | SF | FINF | FXXF );
-
-	if ( proc.flags & FDDF ) {
-		if ( checkXDoubleReg( 0 ) || checkXDoubleReg( 1 ) || checkXDoubleReg( 2 ) ) {
-			curopc.args[ 0 ] = findInterruptMatrixIndex( except_invalid_opcode );
-			op_int();
-		} else {
-			F2DOUBLEREG( FREGARG( 0 ) ) = F2DOUBLEREG( FREGARG( 1 ) ) + F2DOUBLEREG( FREGARG( 2 ) );
-			checkDoubleFlags( F2DOUBLEREG( FREGARG( 0 ) ) );
-		}
-	} else {
-		FREGARG( 0 ) = FREGARG( 1 ) + FREGARG( 2 );
-		checkDoubleFlags( FREGARG( 0 ) );
-	}
+	FLOATPOINTOP_PART1 - FLOATPOINTOP_PART2 - FLOATPOINTOP_PART3;
 }
 
+OPCODE( fmul ) {
+	FLOATPOINTOP_PART1 * FLOATPOINTOP_PART2 * FLOATPOINTOP_PART3;
+}
+
+OPCODE( fdiv ) {
+	if ( FREGARG( 2 ) == 0.0 ) {
+		curopc.args[ 0 ] = findInterruptMatrixIndex( except_zero_division );
+		op_int();
+	} else {
+		FLOATPOINTOP_PART1 / FLOATPOINTOP_PART2 / FLOATPOINTOP_PART3;
+	}
+}

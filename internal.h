@@ -53,8 +53,8 @@ struct _processor {
 
 	uint32 protectedModeMemStart;
 
-	uint32 tlb; // uint32 *TranslationLookasideBuffer[ 64 ]
-	uint32 bva; // Bad virtual address.
+	uint32 tlb[ MAX_TLB ]; // Translation lookaside buffer;
+	uint32 bva[ MAX_BVA ]; // Bad virtual address.
 } proc;
 
 enum ERegisterIndices {
