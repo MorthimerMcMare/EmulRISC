@@ -100,9 +100,9 @@ opcode_data opcodes_matrix[ 64 ] = {
 
 	{ op_mov_const,		OPST_1RegC,	"mov" },
 	{ op_mov_const_lo,	OPST_1RegC,	"movl" },
-	{ op_load_byte,		OPST_1RegC,	"ldb" },
-	{ op_load_word,		OPST_1RegC,	"ldw" },
-	{ op_load_dword,	OPST_1RegC,	"ldd" },
+	{ op_load_byte,		OPST_2RegC,	"ldb" },
+	{ op_load_word,		OPST_2RegC,	"ldw" },
+	{ op_load_dword,	OPST_2RegC,	"ldd" },
 	{ op_load_dw_addr,	OPST_1RegC,	"ldda" },
 	{ op_store_lbyte,	OPST_C1Reg,	"svbl" },
 	{ op_store_hbyte,	OPST_C1Reg,	"svbh" },

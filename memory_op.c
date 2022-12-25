@@ -50,7 +50,7 @@ OPCODE( load_dword ) {
 }
 OPCODE( load_dw_addr ) {
 	INITMEMOPCODE( curopc.args[ 1 ] )
-		REGARG( 0 ) = ( * (uint32 *) &mem[ addr ] ) + curopc.args[ 2 ];
+		REGARG( 0 ) = ( * (uint32 *) &mem[ addr ] );
 }
 
 
